@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TractoRent</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<style>
+  html, body { margin: 0; padding: 0; background:#0F0F0F; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useEffect } = React;
+
+/* ---------------------------------------------------------
+   ICONES (SVG autonomes, style Lucide, sans dépendance externe)
+--------------------------------------------------------- */
+function makeIcon(children) {
+  return function IconComp({ size = 24, color = "currentColor", strokeWidth = 2, className, style }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+        strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
+        className={className} style={style}>
+        {children}
+      </svg>
+    );
+  };
+}
+
+const Search = makeIcon(<><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>);
+const MapPin = makeIcon(<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></>);
+const Gauge = makeIcon(<><path d="M12 14 16 10" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></>);
+const Calendar = makeIcon(<><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>);
+const ChevronRight = makeIcon(<polyline points="9 18 15 12 9 6" />);
+const X = makeIcon(<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>);
+const Check = makeIcon(<polyline points="20 6 9 17 4 12" />);
+const LayoutDashboard = makeIcon(<><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>);
+const Tractor = makeIcon(<><circle cx="7" cy="17" r="3" /><circle cx="17" cy="18" r="2.2" /><path d="M7 14V7a1 1 0 0 1 1-1h2l4 5h3a2 2 0 0 1 2 2v3.5" /><path d="M10 6V4" /><path d="M4 17h0" /></>);
+const ClipboardList = makeIcon(<><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" /><line x1="8" y1="11" x2="16" y2="11" /><line x1="8" y1="15" x2="16" y2="15" /><line x1="8" y1="19" x2="12" y2="19" /></>);
+const Settings = makeIcon(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>);
+const Bot = makeIcon(<><rect x="3" y="8" width="18" height="12" rx="2" /><circle cx="9" cy="13" r="1" /><circle cx="15" cy="13" r="1" /><line x1="12" y1="2" x2="12" y2="8" /><circle cx="12" cy="2" r="1" /></>);
+const TrendingUp = makeIcon(<><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></>);
+const Sparkles = makeIcon(<><path d="M12 3v5" /><path d="M12 16v5" /><path d="M3 12h5" /><path d="M16 12h5" /><path d="m5.5 5.5 3 3" /><path d="m15.5 15.5 3 3" /><path d="m18.5 5.5-3 3" /><path d="m8.5 15.5-3 3" /></>);
+const Mail = makeIcon(<><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></>);
+const Star = makeIcon(<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />);
+const Menu = makeIcon(<><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></>);
+const ArrowRight = makeIcon(<><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>);
+const Plus = makeIcon(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>);
+const Trash2 = makeIcon(<><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></>);
+const Pencil = makeIcon(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></>);
+const BarChart3 = makeIcon(<><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>);
+const Globe2 = makeIcon(<><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20" /></>);
+const MessageCircle = makeIcon(<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />);
+const ShieldCheck = makeIcon(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><polyline points="9 12 11 14 15 10" /></>);
+const Clock = makeIcon(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
+const Heart = makeIcon(<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />);
+const BadgeCheck = makeIcon(<><path d="M12 2 14.5 4.5 18 4l0.5 3.5L22 9l-2 3 2 3-3.5 1.5L18 20l-3.5-.5L12 22l-2.5-2.5L6 20l-0.5-3.5L2 15l2-3-2-3 3.5-1.5L6 4l3.5 0.5Z" /><polyline points="9 12 11 14 15 10" /></>);
+
+
+
+/* ---------------------------------------------------------
+   DONNEES SIMULEES
+--------------------------------------------------------- */
+
+/* Image de secours si une photo externe ne charge pas (ex: aperçu en bac à sable) */
+const FALLBACK_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMTIwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMUMzQjJBIi8+CjxjaXJjbGUgY3g9IjU1IiBjeT0iOTAiIHI9IjE4IiBmaWxsPSIjMTQyMDFBIiBzdHJva2U9IiNDOUEyMjciIHN0cm9rZS13aWR0aD0iMyIvPgo8Y2lyY2xlIGN4PSIxNDUiIGN5PSI5NSIgcj0iMjYiIGZpbGw9IiMxNDIwMUEiIHN0cm9rZT0iI0M5QTIyNyIgc3Ryb2tlLXdpZHRoPSIzIi8+CjxyZWN0IHg9IjcwIiB5PSI1NSIgd2lkdGg9IjU1IiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iI0M5QTIyNyIvPgo8cmVjdCB4PSI5NSIgeT0iMzUiIHdpZHRoPSIyMiIgaGVpZ2h0PSIyNiIgcng9IjMiIGZpbGw9IiNGNkYzRUEiLz4KPHJlY3QgeD0iMzUiIHk9IjcwIiB3aWR0aD0iMzAiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjQzlBMjI3Ii8+Cjwvc3ZnPg==";
+
+const TRACTORS = [
+  {
+    id: 1, name: "Fendt 942 Vario", brand: "Fendt", country: "Allemagne",
+    location: "Bavière", power: 420, year: 2023, transmission: "Vario CVT",
+    use: "Grandes cultures, travaux lourds", day: 480, week: 2600, month: 8900,
+    deposit: 4500, rating: 4.9, images: ["https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 2, name: "John Deere 6155R", brand: "John Deere", country: "France",
+    location: "Beauce", power: 155, year: 2022, transmission: "AutoPowr",
+    use: "Polyvalent, exploitation moyenne", day: 260, week: 1450, month: 4900,
+    deposit: 2200, rating: 4.7, images: ["https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 3, name: "New Holland T7.315", brand: "New Holland", country: "Italie",
+    location: "Émilie-Romagne", power: 315, year: 2021, transmission: "Powershift",
+    use: "Labour, travaux lourds", day: 340, week: 1890, month: 6400,
+    deposit: 3100, rating: 4.6, images: ["https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 4, name: "Massey Ferguson 5713", brand: "Massey Ferguson", country: "Espagne",
+    location: "Andalousie", power: 130, year: 2020, transmission: "Dyna-4",
+    use: "Petites exploitations, verger", day: 180, week: 1010, month: 3400,
+    deposit: 1500, rating: 4.5, images: ["https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 5, name: "Case IH Puma 240", brand: "Case IH", country: "Maroc",
+    location: "Meknès", power: 240, year: 2022, transmission: "Powerdrive",
+    use: "Grandes cultures", day: 300, week: 1670, month: 5600,
+    deposit: 2600, rating: 4.8, images: ["https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 6, name: "Kubota M7-172", brand: "Kubota", country: "France",
+    location: "Bretagne", power: 172, year: 2023, transmission: "Powershift",
+    use: "Élevage, fourrage", day: 220, week: 1230, month: 4100,
+    deposit: 1900, rating: 4.7, images: ["https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 7, name: "Fendt 724 Vario", brand: "Fendt", country: "Roumanie",
+    location: "Timiș", power: 240, year: 2022, transmission: "Vario CVT",
+    use: "Grandes cultures céréalières", day: 290, week: 1620, month: 5500,
+    deposit: 2500, rating: 4.8, images: ["https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 8, name: "Ursus 8014H", brand: "Ursus", country: "Pologne",
+    location: "Grande-Pologne", power: 140, year: 2021, transmission: "Powershift",
+    use: "Exploitation moyenne, polyvalent", day: 195, week: 1090, month: 3700,
+    deposit: 1650, rating: 4.5, images: ["https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 9, name: "Zetor Forterra 150", brand: "Zetor", country: "Roumanie",
+    location: "Cluj", power: 150, year: 2020, transmission: "Powershuttle",
+    use: "Grandes cultures, transport", day: 200, week: 1120, month: 3800,
+    deposit: 1700, rating: 4.4, images: ["https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 10, name: "Valtra N155", brand: "Valtra", country: "Finlande",
+    location: "Ostrobotnie", power: 155, year: 2022, transmission: "Powershift",
+    use: "Forêt et grandes cultures nordiques", day: 250, week: 1400, month: 4700,
+    deposit: 2100, rating: 4.8, images: ["https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 11, name: "MTZ Belarus 892", brand: "Belarus", country: "Lituanie",
+    location: "Kaunas", power: 92, year: 2019, transmission: "Mécanique",
+    use: "Petites exploitations, polyvalent", day: 140, week: 780, month: 2600,
+    deposit: 1100, rating: 4.3, images: ["https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 12, name: "John Deere 6120M", brand: "John Deere", country: "Estonie",
+    location: "Tartu", power: 120, year: 2021, transmission: "PowrQuad",
+    use: "Fourrage, élevage", day: 210, week: 1170, month: 3900,
+    deposit: 1750, rating: 4.6, images: ["https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 13, name: "New Holland T6.155", brand: "New Holland", country: "Ukraine",
+    location: "Vinnytsia", power: 155, year: 2020, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 230, week: 1290, month: 4300,
+    deposit: 1900, rating: 4.5, images: ["https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 14, name: "Case IH Farmall 105U", brand: "Case IH", country: "Moldavie",
+    location: "Chișinău", power: 105, year: 2019, transmission: "Powershuttle",
+    use: "Viticulture, petites parcelles", day: 160, week: 900, month: 3000,
+    deposit: 1300, rating: 4.4, images: ["https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 15, name: "Kubota M8560", brand: "Kubota", country: "Géorgie",
+    location: "Kakhétie", power: 85, year: 2021, transmission: "Powershift",
+    use: "Viticulture, verger", day: 150, week: 840, month: 2800,
+    deposit: 1200, rating: 4.6, images: ["https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 16, name: "Massey Ferguson 7719", brand: "Massey Ferguson", country: "Kazakhstan",
+    location: "Akmola", power: 190, year: 2022, transmission: "Dyna-VT",
+    use: "Grandes steppes céréalières", day: 270, week: 1510, month: 5100,
+    deposit: 2300, rating: 4.7, images: ["https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 17, name: "Belarus 3022", brand: "Belarus", country: "Biélorussie",
+    location: "Minsk", power: 220, year: 2021, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 210, week: 1170, month: 3900,
+    deposit: 1800, rating: 4.3, images: ["https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 18, name: "Same Argon3", brand: "Same", country: "Albanie",
+    location: "Tirana", power: 200, year: 2021, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 270, week: 1510, month: 5000,
+    deposit: 2000, rating: 4.3, images: ["https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 19, name: "Kubota M5", brand: "Kubota", country: "Andorre",
+    location: "Andorre-la-Vieille", power: 95, year: 2019, transmission: "Powershift",
+    use: "Polyvalent, exploitation moyenne", day: 130, week: 730, month: 2400,
+    deposit: 1000, rating: 4.4, images: ["https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 20, name: "Lindner Lintrac 90", brand: "Lindner", country: "Autriche",
+    location: "Tyrol", power: 200, year: 2023, transmission: "Powershift",
+    use: "Viticulture, petites parcelles", day: 270, week: 1510, month: 5000,
+    deposit: 2000, rating: 4.7, images: ["https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 21, name: "Claas Arion 460", brand: "Claas", country: "Belgique",
+    location: "Wallonie", power: 75, year: 2019, transmission: "Powershift",
+    use: "Élevage, fourrage", day: 100, week: 560, month: 1850,
+    deposit: 750, rating: 4.6, images: ["https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 22, name: "IMT 533", brand: "IMT", country: "Bosnie-Herzégovine",
+    location: "Banja Luka", power: 65, year: 2020, transmission: "Powershift",
+    use: "Verger, arboriculture", day: 90, week: 500, month: 1660,
+    deposit: 700, rating: 4.3, images: ["https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 23, name: "John Deere 6110M", brand: "John Deere", country: "Bulgarie",
+    location: "Plovdiv", power: 160, year: 2023, transmission: "Powershift",
+    use: "Petites exploitations urbaines", day: 215, week: 1200, month: 3980,
+    deposit: 1600, rating: 4.6, images: ["https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 24, name: "Landini 5-100", brand: "Landini", country: "Croatie",
+    location: "Slavonie", power: 95, year: 2023, transmission: "Powershift",
+    use: "Maraîchage et jardins", day: 130, week: 730, month: 2400,
+    deposit: 1000, rating: 4.7, images: ["https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 25, name: "Kubota M7001", brand: "Kubota", country: "Chypre",
+    location: "Nicosie", power: 130, year: 2023, transmission: "Powershift",
+    use: "Montagne, terrain en pente", day: 175, week: 980, month: 3240,
+    deposit: 1300, rating: 4.4, images: ["https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 26, name: "Zetor Proxima 100", brand: "Zetor", country: "République tchèque",
+    location: "Moravie", power: 105, year: 2019, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 140, week: 780, month: 2590,
+    deposit: 1050, rating: 4.8, images: ["https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 27, name: "New Holland T7.220", brand: "New Holland", country: "Danemark",
+    location: "Jutland", power: 85, year: 2021, transmission: "Powershift",
+    use: "Polyvalent, exploitation moyenne", day: 115, week: 640, month: 2130,
+    deposit: 850, rating: 4.7, images: ["https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 28, name: "Massey Ferguson 5711", brand: "Massey Ferguson", country: "Grèce",
+    location: "Thessalie", power: 105, year: 2021, transmission: "Powershift",
+    use: "Viticulture, petites parcelles", day: 140, week: 780, month: 2590,
+    deposit: 1050, rating: 4.3, images: ["https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 29, name: "Fendt 516 Vario", brand: "Fendt", country: "Hongrie",
+    location: "Grande Plaine", power: 75, year: 2019, transmission: "Powershift",
+    use: "Élevage, fourrage", day: 100, week: 560, month: 1850,
+    deposit: 750, rating: 4.3, images: ["https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 30, name: "Valtra A94", brand: "Valtra", country: "Islande",
+    location: "Sud-Islande", power: 115, year: 2023, transmission: "Powershift",
+    use: "Verger, arboriculture", day: 155, week: 870, month: 2870,
+    deposit: 1150, rating: 4.8, images: ["https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 31, name: "New Holland T6.180", brand: "New Holland", country: "Irlande",
+    location: "Munster", power: 105, year: 2022, transmission: "Powershift",
+    use: "Petites exploitations urbaines", day: 140, week: 780, month: 2590,
+    deposit: 1050, rating: 4.8, images: ["https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 32, name: "Same Explorer 90", brand: "Same", country: "Kosovo",
+    location: "Pristina", power: 160, year: 2022, transmission: "Powershift",
+    use: "Maraîchage et jardins", day: 215, week: 1200, month: 3980,
+    deposit: 1600, rating: 4.3, images: ["https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 33, name: "John Deere 6130R", brand: "John Deere", country: "Lettonie",
+    location: "Riga", power: 75, year: 2023, transmission: "Powershift",
+    use: "Montagne, terrain en pente", day: 100, week: 560, month: 1850,
+    deposit: 750, rating: 4.6, images: ["https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 34, name: "Kubota M5111", brand: "Kubota", country: "Liechtenstein",
+    location: "Vaduz", power: 115, year: 2019, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 155, week: 870, month: 2870,
+    deposit: 1150, rating: 4.6, images: ["https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 35, name: "Deutz-Fahr 6120", brand: "Deutz-Fahr", country: "Luxembourg",
+    location: "Mersch", power: 65, year: 2021, transmission: "Powershift",
+    use: "Polyvalent, exploitation moyenne", day: 90, week: 500, month: 1660,
+    deposit: 700, rating: 4.7, images: ["https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 36, name: "Kubota L3800", brand: "Kubota", country: "Malte",
+    location: "Gozo", power: 75, year: 2019, transmission: "Powershift",
+    use: "Viticulture, petites parcelles", day: 100, week: 560, month: 1850,
+    deposit: 750, rating: 4.8, images: ["https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 37, name: "Kubota L3800", brand: "Kubota", country: "Monaco",
+    location: "Monaco-Ville", power: 130, year: 2021, transmission: "Powershift",
+    use: "Élevage, fourrage", day: 175, week: 980, month: 3240,
+    deposit: 1300, rating: 4.4, images: ["https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 38, name: "Same Frutteto", brand: "Same", country: "Monténégro",
+    location: "Podgorica", power: 85, year: 2020, transmission: "Powershift",
+    use: "Verger, arboriculture", day: 115, week: 640, month: 2130,
+    deposit: 850, rating: 4.5, images: ["https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 39, name: "Fendt 718 Vario", brand: "Fendt", country: "Pays-Bas",
+    location: "Flevoland", power: 200, year: 2019, transmission: "Powershift",
+    use: "Petites exploitations urbaines", day: 270, week: 1510, month: 5000,
+    deposit: 2000, rating: 4.4, images: ["https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 40, name: "Ursus 5714", brand: "Ursus", country: "Macédoine du Nord",
+    location: "Skopje", power: 180, year: 2023, transmission: "Powershift",
+    use: "Maraîchage et jardins", day: 245, week: 1370, month: 4530,
+    deposit: 1850, rating: 4.6, images: ["https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 41, name: "Valtra N134", brand: "Valtra", country: "Norvège",
+    location: "Trøndelag", power: 95, year: 2022, transmission: "Powershift",
+    use: "Montagne, terrain en pente", day: 130, week: 730, month: 2400,
+    deposit: 1000, rating: 4.3, images: ["https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 42, name: "Same Virtus 130", brand: "Same", country: "Portugal",
+    location: "Alentejo", power: 105, year: 2023, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 140, week: 780, month: 2590,
+    deposit: 1050, rating: 4.9, images: ["https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 43, name: "Kubota M5111", brand: "Kubota", country: "Saint-Marin",
+    location: "Saint-Marin", power: 95, year: 2019, transmission: "Powershift",
+    use: "Polyvalent, exploitation moyenne", day: 130, week: 730, month: 2400,
+    deposit: 1000, rating: 4.7, images: ["https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 44, name: "IMT 560", brand: "IMT", country: "Serbie",
+    location: "Voïvodine", power: 95, year: 2021, transmission: "Powershift",
+    use: "Viticulture, petites parcelles", day: 130, week: 730, month: 2400,
+    deposit: 1000, rating: 4.8, images: ["https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 45, name: "Zetor Forterra 140", brand: "Zetor", country: "Slovaquie",
+    location: "Nitra", power: 130, year: 2020, transmission: "Powershift",
+    use: "Élevage, fourrage", day: 175, week: 980, month: 3240,
+    deposit: 1300, rating: 4.4, images: ["https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 46, name: "Deutz-Fahr 5100", brand: "Deutz-Fahr", country: "Slovénie",
+    location: "Basse-Styrie", power: 180, year: 2021, transmission: "Powershift",
+    use: "Verger, arboriculture", day: 245, week: 1370, month: 4530,
+    deposit: 1850, rating: 4.8, images: ["https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 47, name: "Valtra T174", brand: "Valtra", country: "Suède",
+    location: "Scanie", power: 95, year: 2022, transmission: "Powershift",
+    use: "Petites exploitations urbaines", day: 130, week: 730, month: 2400,
+    deposit: 1000, rating: 4.7, images: ["https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1653156392599-10de5367c555?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1719254500669-2bc432c43933?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 48, name: "Rigitrac SKH105", brand: "Rigitrac", country: "Suisse",
+    location: "Emmental", power: 200, year: 2021, transmission: "Powershift",
+    use: "Maraîchage et jardins", day: 270, week: 1510, month: 5000,
+    deposit: 2000, rating: 4.5, images: ["https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 49, name: "John Deere 6155M", brand: "John Deere", country: "Royaume-Uni",
+    location: "Yorkshire", power: 85, year: 2023, transmission: "Powershift",
+    use: "Montagne, terrain en pente", day: 115, week: 640, month: 2130,
+    deposit: 850, rating: 4.4, images: ["https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1758030845352-1b69b013f81f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1780260191867-1af3f19f1c3f?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1601593797922-325abb0f763d?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+  {
+    id: 50, name: "Kubota B2601", brand: "Kubota", country: "Vatican",
+    location: "Cité du Vatican", power: 160, year: 2023, transmission: "Powershift",
+    use: "Grandes cultures céréalières", day: 215, week: 1200, month: 3980,
+    deposit: 1600, rating: 4.4, images: ["https://images.unsplash.com/photo-1713207668892-af3f13510d18?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1760635165251-5a3a81425a89?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1755069520895-4a69edc47301?auto=format&fit=crop&w=800&h=600&q=70", "https://images.unsplash.com/photo-1568680870491-590cd4e224ab?auto=format&fit=crop&w=800&h=600&q=70"]
+  },
+];
+
+const AI_LOG = [
+  { time: "06:12", who: "AI Growth Director", text: "Nouvel article publié : « Louer un tracteur en Andalousie : guide complet 2026 »" },
+  { time: "07:40", who: "AI Market Intelligence", text: "Hausse de 18% des recherches « location tracteur Maroc » sur 7 jours" },
+  { time: "09:05", who: "AI Customer Assistant", text: "12 conversations traitées, 4 demandes de réservation transmises" },
+  { time: "11:30", who: "AI Growth Director", text: "Optimisation SEO de la fiche Fendt 942 Vario (méta-titre, FAQ)" },
+  { time: "14:00", who: "AI Market Intelligence", text: "Recommandation : ajouter un tracteur < 150 ch pour le marché espagnol" },
+  { time: "16:20", who: "AI Market Intelligence", text: "Marchés prioritaires confirmés : tous les pays proches de la Russie — Pologne, Roumanie, pays baltes, Finlande, Ukraine, Moldavie, Géorgie, Kazakhstan, Biélorussie" },
+];
+
+/* Articles générés automatiquement chaque jour — remplace par l'ID de ton bin jsonbin.io
+   (laisse vide tant que l'automatisation n'est pas configurée : le site utilisera
+   uniquement les 3 articles écrits ci-dessus) */
+const JSONBIN_ID = "6a7b7df2f5f4af5e2908e009";
+const JSONBIN_READ_URL = JSONBIN_ID ? `https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest` : null;
+
+/* Articles de blog — contenu éditorial SEO (rédigés manuellement pour le lancement) */
+const BLOG_ARTICLES = [
+  {
+    slug: "choisir-puissance-tracteur",
+    category: "Guide d'achat",
+    title: "Comment choisir la puissance de tracteur adaptée à votre exploitation",
+    excerpt: "80, 150 ou 300 chevaux ? La puissance idéale dépend de vos travaux, pas de vos envies. Voici comment la calculer sans vous tromper.",
+    date: "3 août 2026",
+    readTime: "6 min",
+    cover: "https://images.unsplash.com/photo-1717702576954-c07131c54169?auto=format&fit=crop&w=1200&h=700&q=70",
+    content: [
+      { type: "p", text: "Louer un tracteur trop puissant, c'est payer plus cher pour rien. En louer un trop faible, c'est risquer de caler dans un labour ou de tirer un outil à la limite de ses capacités. La puissance n'est pas une question de prestige : c'est une équation entre votre outil, votre sol et votre surface." },
+      { type: "h2", text: "1. Partez de votre outil, pas de votre tracteur" },
+      { type: "p", text: "Chaque outil (charrue, herse, presse à balles, épandeur) a une puissance minimale recommandée par le fabricant, généralement indiquée en chevaux par mètre de largeur de travail. Une charrue 4 socs en labour classique demande environ 40 à 50 ch par soc en terrain lourd. C'est ce chiffre qui doit guider votre choix, pas l'inverse." },
+      { type: "h2", text: "2. Le type de sol change tout" },
+      { type: "p", text: "Un sol argileux ou en pente demande 15 à 25% de puissance supplémentaire par rapport à un sol sableux ou plat, à outil identique. Si vous travaillez plusieurs parcelles aux profils différents, dimensionnez toujours sur la parcelle la plus exigeante." },
+      { type: "h2", text: "3. Petits repères par usage" },
+      { type: "ul", items: [
+        "Entretien, verger, petites parcelles (< 20 ha) : 80 à 140 ch",
+        "Polyvalence, exploitation moyenne (20-80 ha) : 140 à 220 ch",
+        "Grandes cultures, labour profond (> 80 ha) : 220 à 350 ch",
+        "Travaux lourds, sols difficiles : 350 ch et plus",
+      ]},
+      { type: "p", text: "Ces fourchettes sont indicatives : un même tracteur de 180 ch peut être parfait pour une exploitation céréalière en plaine et sous-dimensionné pour un travail de sol en terrain argileux en pente." },
+      { type: "h2", text: "4. En cas de doute, sous-louez plutôt que sur-louez" },
+      { type: "p", text: "Un tracteur légèrement sous-dimensionné rallonge le temps de travail mais reste utilisable. Un tracteur surdimensionné consomme plus de carburant, tasse davantage le sol et coûte plus cher à la location — sans bénéfice réel si l'outil ne peut pas exploiter cette puissance." },
+      { type: "p", text: "Sur TractoRent, chaque fiche tracteur affiche la puissance en chevaux et en kW, ainsi que l'usage recommandé, pour comparer rapidement plusieurs modèles avant de réserver." },
+    ],
+  },
+  {
+    slug: "location-vs-achat-tracteur",
+    category: "Stratégie",
+    title: "Location ou achat de tracteur : quelle solution pour votre exploitation en 2026 ?",
+    excerpt: "Acheter immobilise du capital, louer offre de la flexibilité. Voici les critères concrets pour trancher selon votre situation.",
+    date: "6 août 2026",
+    readTime: "5 min",
+    cover: "https://images.unsplash.com/photo-1755498591537-eb54d2d54351?auto=format&fit=crop&w=1200&h=700&q=70",
+    content: [
+      { type: "p", text: "La question revient chaque saison : investir dans un tracteur ou louer au besoin ? Il n'y a pas de bonne réponse universelle, seulement la bonne réponse pour votre taux d'utilisation, votre trésorerie et la nature de vos travaux." },
+      { type: "h2", text: "Le critère qui décide de tout : le taux d'utilisation" },
+      { type: "p", text: "Un tracteur acheté n'est rentable que s'il tourne suffisamment d'heures par an. En dessous d'environ 400 à 500 heures annuelles, le coût à l'heure d'un tracteur possédé dépasse souvent celui d'une location ponctuelle, une fois l'amortissement, l'assurance, l'entretien et le stockage inclus." },
+      { type: "h2", text: "Quand la location a l'avantage" },
+      { type: "ul", items: [
+        "Travaux saisonniers ou ponctuels (moisson, labour d'automne)",
+        "Besoin d'un outil très spécifique pour un chantier unique",
+        "Trésorerie à préserver ou activité récente",
+        "Test d'une marque ou d'une puissance avant investissement",
+      ]},
+      { type: "h2", text: "Quand l'achat a l'avantage" },
+      { type: "ul", items: [
+        "Usage quotidien ou quasi quotidien toute l'année",
+        "Besoin de personnaliser durablement l'outil (attelages, cabine)",
+        "Exploitation stable avec visibilité à long terme",
+      ]},
+      { type: "h2", text: "Une troisième voie : la location pour lisser les pics" },
+      { type: "p", text: "De plus en plus d'exploitants combinent un parc réduit à l'achat pour l'usage courant, et complètent avec de la location ponctuelle lors des pics de charge (semis, récolte). Cette approche évite de sur-investir dans du matériel qui reste immobilisé onze mois sur douze." },
+      { type: "p", text: "Sur TractoRent, vous pouvez comparer les tarifs jour, semaine et mois pour chaque tracteur : de quoi chiffrer précisément le coût d'une location ponctuelle avant de trancher." },
+    ],
+  },
+  {
+    slug: "reduire-couts-location-materiel-agricole",
+    category: "Conseils pratiques",
+    title: "5 leviers concrets pour réduire vos coûts de location de matériel agricole",
+    excerpt: "Réserver au bon moment, mutualiser, bien calibrer la durée : cinq réflexes simples pour louer moins cher sans rogner sur la qualité.",
+    date: "9 août 2026",
+    readTime: "4 min",
+    cover: "https://images.unsplash.com/photo-1633555269939-bc019a4bc4b6?auto=format&fit=crop&w=1200&h=700&q=70",
+    content: [
+      { type: "p", text: "Le prix d'une location de tracteur n'est pas figé : il dépend de la période, de la durée choisie et de la façon dont vous organisez vos chantiers. Voici cinq leviers simples pour réduire la facture sans sacrifier la qualité du matériel." },
+      { type: "h2", text: "1. Réservez en dehors des pics de demande" },
+      { type: "p", text: "Les tarifs grimpent naturellement pendant les périodes de forte demande (semis de printemps, moisson). Si vos travaux le permettent, décaler une réservation de quelques semaines peut suffire à obtenir de meilleures conditions." },
+      { type: "h2", text: "2. Calibrez la durée exacte, pas une durée arrondie" },
+      { type: "p", text: "Louer à la semaine quand vous n'avez besoin que de 3 jours coûte souvent plus cher que louer au jour, et inversement pour une utilisation longue. Comparez systématiquement le tarif jour, semaine et mois sur la fiche du tracteur avant de valider." },
+      { type: "h2", text: "3. Groupez vos besoins avec d'autres exploitants" },
+      { type: "p", text: "Pour un chantier ponctuel (moisson collective, entraide de voisinage), mutualiser une location entre plusieurs exploitations permet de répartir le coût et parfois d'accéder à un matériel plus performant que ce que chacun aurait loué seul." },
+      { type: "h2", text: "4. Anticipez la caution dans votre trésorerie" },
+      { type: "p", text: "La caution n'est pas un coût définitif, mais elle immobilise de la trésorerie le temps de la location. Vérifiez le montant avant de réserver pour éviter les mauvaises surprises de calendrier, notamment si vous enchaînez plusieurs locations." },
+      { type: "h2", text: "5. Comparez plusieurs modèles à puissance équivalente" },
+      { type: "p", text: "Deux tracteurs de puissance similaire peuvent avoir des tarifs de location différents selon la marque, l'année ou l'équipement. Prendre quelques minutes pour comparer plusieurs fiches avant de réserver est souvent le levier le plus simple — et le plus négligé." },
+      { type: "p", text: "Toutes ces informations (tarifs jour/semaine/mois, caution, puissance) sont affichées clairement sur chaque fiche TractoRent, pour comparer sans avoir à demander un devis par téléphone." },
+    ],
+  },
+];
+
+/* ---------------------------------------------------------
+   PETITS COMPOSANTS
+--------------------------------------------------------- */
+
+function FieldDivider() {
+  return <div aria-hidden className="w-full h-px" style={{ background: "rgba(255,255,255,0.1)" }} />;
+}
+
+function Logo({ dark }) {
+  return (
+    <div className="flex items-center gap-2 font-bold tracking-tight text-lg">
+      <div className="w-8 h-8 rounded-2xl flex items-center justify-center"
+        style={{ background: "#1C1C1C" }}>
+        <Tractor size={18} color="#173626" strokeWidth={2.5} />
+      </div>
+      <span style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+        TractoRent
+      </span>
+    </div>
+  );
+}
+
+function ImageGallery({ images, alt, className }) {
+  return (
+    <div className={"relative " + (className || "")}>
+      <div className="h-full w-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
+        style={{ scrollbarWidth: "none" }}>
+        {images.map((src, i) => (
+          <img key={i} src={src} alt={alt} loading="lazy"
+            className="h-full w-full object-cover shrink-0 snap-center"
+            onError={e => { e.target.onerror = null; e.target.src = FALLBACK_IMG; }} />
+        ))}
+      </div>
+      {images.length > 1 && (
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+          {images.map((_, i) => (
+            <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.85)" }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pill({ children }) {
+  return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+      style={{ background: "#2A2A2A", color: "#9CA3AF" }}>
+      {children}
+    </span>
+  );
+}
+
+/* ---------------------------------------------------------
+   BLOG
+--------------------------------------------------------- */
+
+function BlogListing({ articles, onOpen }) {
+  return (
+    <div style={{ background: "#0F0F0F", minHeight: "70vh" }}>
+      <section className="max-w-6xl mx-auto px-5 pt-14 pb-4">
+        <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: "#2F6B3F" }}>Blog TractoRent</p>
+        <h1 className="text-3xl md:text-4xl font-bold mb-3" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+          Conseils, guides et actualités de la location de tracteurs
+        </h1>
+        <p className="text-sm max-w-xl" style={{ color: "#9CA3AF" }}>
+          Des articles pratiques pour choisir, louer et rentabiliser votre matériel agricole.
+        </p>
+      </section>
+      <section className="max-w-6xl mx-auto px-5 pb-16">
+        <div className="grid md:grid-cols-3 gap-6">
+          {articles.map(a => (
+            <button key={a.slug} onClick={() => onOpen(a.slug)} className="text-left rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:border-[#2F6B3F]"
+              style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+              <img src={a.cover} onError={e => { e.currentTarget.src = FALLBACK_IMG; }} alt={a.title} className="w-full h-40 object-cover" />
+              <div className="p-4">
+                <Pill>{a.category}</Pill>
+                <h2 className="font-semibold mt-3 mb-2 leading-snug" style={{ color: "#FFFFFF" }}>{a.title}</h2>
+                <p className="text-xs mb-3 line-clamp-2" style={{ color: "#9CA3AF" }}>{a.excerpt}</p>
+                <div className="flex items-center gap-2 text-[11px]" style={{ color: "#6B6B6B" }}>
+                  <span>{a.date}</span><span>·</span><span>{a.readTime} de lecture</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function BlogArticlePage({ article, articles, onBack, onOpen, onSeeCatalogue }) {
+  if (!article) return null;
+  const related = articles.filter(a => a.slug !== article.slug).slice(0, 2);
+  return (
+    <div style={{ background: "#0F0F0F", minHeight: "70vh" }}>
+      <section className="max-w-3xl mx-auto px-5 pt-10">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium mb-6" style={{ color: "#7ED9A0" }}>
+          <ChevronRight size={14} style={{ transform: "rotate(180deg)" }} /> Retour au blog
+        </button>
+        <Pill>{article.category}</Pill>
+        <h1 className="text-2xl md:text-4xl font-bold mt-4 mb-3 leading-tight" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+          {article.title}
+        </h1>
+        <div className="flex items-center gap-2 text-xs mb-6" style={{ color: "#9CA3AF" }}>
+          <span>{article.date}</span><span>·</span><span>{article.readTime} de lecture</span>
+        </div>
+        <img src={article.cover} onError={e => { e.currentTarget.src = FALLBACK_IMG; }} alt={article.title}
+          className="w-full h-56 md:h-72 object-cover rounded-2xl mb-8" />
+      </section>
+
+      <section className="max-w-3xl mx-auto px-5 pb-10">
+        <div className="space-y-4">
+          {article.content.map((block, i) => {
+            if (block.type === "h2") {
+              return <h2 key={i} className="text-xl font-bold pt-4" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>{block.text}</h2>;
+            }
+            if (block.type === "ul") {
+              return (
+                <ul key={i} className="space-y-2 pl-1">
+                  {block.items.map((it, j) => (
+                    <li key={j} className="flex items-start gap-2 text-sm" style={{ color: "#D1D5DB" }}>
+                      <Check size={14} color="#2F6B3F" className="mt-0.5 shrink-0" /> {it}
+                    </li>
+                  ))}
+                </ul>
+              );
+            }
+            return <p key={i} className="text-sm leading-relaxed" style={{ color: "#D1D5DB" }}>{block.text}</p>;
+          })}
+        </div>
+
+        {/* CTA conversion */}
+        <div className="mt-10 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          style={{ background: "linear-gradient(135deg, #1B4B2A, #2F6B3F)" }}>
+          <div>
+            <p className="font-semibold" style={{ color: "#FFFFFF" }}>Prêt à réserver votre tracteur ?</p>
+            <p className="text-xs mt-1" style={{ color: "#BFE3C8" }}>Comparez les modèles disponibles et leurs tarifs en quelques minutes.</p>
+          </div>
+          <button onClick={onSeeCatalogue} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-300 hover:brightness-110"
+            style={{ background: "#F0A83A", color: "#1A1A1A" }}>
+            Voir le catalogue <ArrowRight size={15} />
+          </button>
+        </div>
+      </section>
+
+      {related.length > 0 && (
+        <section className="max-w-3xl mx-auto px-5 pb-16">
+          <h3 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: "#2F6B3F" }}>À lire aussi</h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {related.map(a => (
+              <button key={a.slug} onClick={() => onOpen(a.slug)} className="text-left rounded-2xl overflow-hidden border transition-all duration-300 hover:border-[#2F6B3F]"
+                style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                <img src={a.cover} onError={e => { e.currentTarget.src = FALLBACK_IMG; }} alt={a.title} className="w-full h-28 object-cover" />
+                <div className="p-3">
+                  <p className="text-sm font-semibold leading-snug" style={{ color: "#FFFFFF" }}>{a.title}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   SITE PUBLIC
+--------------------------------------------------------- */
+
+function PublicSite({ goAdmin }) {
+  const [query, setQuery] = useState("");
+  const [country, setCountry] = useState("Tous les pays");
+  const [selected, setSelected] = useState(null); // tractor object
+  const [booking, setBooking] = useState(null); // {days, startDate}
+  const [submitted, setSubmitted] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [page, setPage] = useState("home"); // "home" | "blog" | "article"
+  const [activeSlug, setActiveSlug] = useState(null);
+  const [autoArticles, setAutoArticles] = useState([]);
+
+  // Récupère les articles publiés automatiquement par le robot IA (s'il est configuré)
+  useEffect(() => {
+    if (!JSONBIN_READ_URL) return;
+    fetch(JSONBIN_READ_URL)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const list = data && data.record && data.record.articles;
+        if (Array.isArray(list)) setAutoArticles(list);
+      })
+      .catch(() => { /* silencieux : le site continue avec les articles écrits à la main */ });
+  }, []);
+
+  // Fusion : articles auto-générés en premier (plus récents), puis les articles écrits à la main,
+  // sans doublons de slug
+  const allArticles = useMemo(() => {
+    const seen = new Set();
+    const merged = [];
+    for (const a of [...autoArticles, ...BLOG_ARTICLES]) {
+      if (!seen.has(a.slug)) { seen.add(a.slug); merged.push(a); }
+    }
+    return merged;
+  }, [autoArticles]);
+
+  function goHome() { setPage("home"); window.scrollTo(0, 0); }
+  function goBlog() { setPage("blog"); window.scrollTo(0, 0); }
+  function openArticle(slug) { setActiveSlug(slug); setPage("article"); window.scrollTo(0, 0); }
+
+  const countries = ["Tous les pays", ...new Set(TRACTORS.map(t => t.country))];
+
+  const filtered = useMemo(() => {
+    return TRACTORS.filter(t => {
+      const matchQuery = (t.name + t.brand).toLowerCase().includes(query.toLowerCase());
+      const matchCountry = country === "Tous les pays" || t.country === country;
+      return matchQuery && matchCountry;
+    });
+  }, [query, country]);
+
+  function openBooking(tractor) {
+    setSelected(tractor);
+    setBooking({ start: "", duration: "day", qty: 1 });
+    setSubmitted(false);
+  }
+
+  const totalPrice = useMemo(() => {
+    if (!selected || !booking) return 0;
+    const rate = booking.duration === "day" ? selected.day
+      : booking.duration === "week" ? selected.week : selected.month;
+    return rate * (booking.qty || 1);
+  }, [selected, booking]);
+
+  const showTerms = booking && booking.start && booking.qty > 0;
+
+  return (
+    <div style={{ background: "#0F0F0F", minHeight: "100vh", fontFamily: "'Inter', sans-serif" }}>
+      {/* NAV */}
+      <header className="sticky top-0 z-30" style={{ background: "#173626" }}>
+        <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
+          <button onClick={goHome}><Logo dark /></button>
+          <nav className="hidden md:flex items-center gap-6 text-sm" style={{ color: "#BFE3C8" }}>
+            <a href="#catalogue" onClick={goHome} className="hover:text-white">Catalogue</a>
+            <a href="#fonctionnement" onClick={goHome} className="hover:text-white">Comment ça marche</a>
+            <button onClick={goBlog} className="hover:text-white">Blog</button>
+            <a href="#temoignages" onClick={goHome} className="hover:text-white">Témoignages</a>
+            <a href="#contact" onClick={goHome} className="hover:text-white">Contact</a>
+          </nav>
+          <button onClick={goAdmin} className="text-xs font-semibold px-3 py-2 rounded-2xl transition-all duration-300 hover:brightness-110"
+            style={{ background: "#FFFFFF", color: "#173626" }}>
+            Espace admin
+          </button>
+        </div>
+      </header>
+
+      {page === "home" && (
+      <>
+      {/* HERO */}
+      <section className="relative overflow-hidden" style={{ background: "linear-gradient(180deg, #173626 0%, #0E1F16 100%)" }}>
+        <div className="max-w-6xl mx-auto px-5 pt-16 pb-28 relative z-10">
+          <p className="text-sm font-semibold mb-3" style={{ color: "#7ED9A0" }}>
+            La plateforme mondiale intelligente de location de tracteurs
+          </p>
+          <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] max-w-3xl"
+            style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+            Louez le bon tracteur, au bon endroit, en quelques minutes.
+          </h1>
+          <p className="mt-5 max-w-xl text-base" style={{ color: "#BFE3C8" }}>
+            Comparez des tracteurs disponibles dans le monde entier, réservez en ligne,
+            et échangez avec notre équipe uniquement par email — simple, transparent, sans intermédiaire.
+          </p>
+        </div>
+      </section>
+
+      {/* search bar overlapping (hors du hero pour ne pas être rognée par overflow-hidden) */}
+      <div className="max-w-4xl mx-auto px-5 relative z-20 -mt-14">
+        <div className="rounded-2xl p-4 md:p-5 shadow-2xl grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3"
+          style={{ background: "#FFFFFF" }}>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border" style={{ background: "#F5F5F5", borderColor: "#E5E5E5" }}>
+            <Search size={18} color="#6B6B6B" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Rechercher une marque ou un modèle..."
+              className="bg-transparent outline-none text-sm w-full"
+              style={{ color: "#1A1A1A" }}
+            />
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border" style={{ background: "#F5F5F5", borderColor: "#E5E5E5" }}>
+            <MapPin size={18} color="#6B6B6B" />
+            <select value={country} onChange={e => setCountry(e.target.value)}
+              className="bg-transparent outline-none text-sm" style={{ color: "#1A1A1A" }}>
+              {countries.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <a href="#catalogue" className="flex items-center justify-center gap-2 px-5 py-2 rounded-2xl font-semibold text-sm transition-all duration-300 hover:brightness-110"
+            style={{ background: "#F0A83A", color: "#1A1A1A" }}>
+            Rechercher <ArrowRight size={16} />
+          </a>
+        </div>
+      </div>
+
+      <div className="pt-14" />
+
+      {/* TRUST BAR */}
+      <div className="border-b" style={{ background: "#1C1C1C", borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="max-w-6xl mx-auto px-5 py-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { icon: <ShieldCheck size={18} />, text: "Fournisseurs vérifiés" },
+            { icon: <Check size={18} />, text: "Conditions transparentes" },
+            { icon: <Clock size={18} />, text: "Réponse sous 24h" },
+            { icon: <Mail size={18} />, text: "Suivi par email" },
+          ].map((b, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span style={{ color: "#2F6B3F" }}>{b.icon}</span>
+              <span className="text-xs md:text-sm font-medium" style={{ color: "#FFFFFF" }}>{b.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* POURQUOI */}
+      <section className="max-w-6xl mx-auto px-5 py-16">
+        <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: "#2F6B3F" }}>Pourquoi TractoRent</p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-10" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+          Une location pensée pour les professionnels
+        </h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            { icon: <Globe2 size={20} />, title: "Réseau international", text: "Des tracteurs disponibles dans plusieurs pays, vérifiés et prêts à l'usage." },
+            { icon: <Mail size={20} />, title: "100% par email", text: "Aucun démarchage téléphonique. Chaque échange est tracé et confirmé par écrit." },
+            { icon: <Check size={20} />, title: "Transparence totale", text: "Prix, conditions et caution affichés clairement avant toute confirmation." },
+          ].map((f, i) => (
+            <div key={i} className="p-6 rounded-2xl border transition-all duration-300 hover:-translate-y-1" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-4"
+                style={{ background: "rgba(47,107,63,0.15)", color: "#2F6B3F", boxShadow: "0 0 12px rgba(47,107,63,0.15)" }}>{f.icon}</div>
+              <h3 className="font-semibold mb-1" style={{ color: "#FFFFFF" }}>{f.title}</h3>
+              <p className="text-sm" style={{ color: "#9CA3AF" }}>{f.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <FieldDivider />
+
+      {/* CATALOGUE */}
+      <section id="catalogue" className="max-w-6xl mx-auto px-5 py-14">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: "#2F6B3F" }}>Catalogue</p>
+            <h2 className="text-2xl md:text-3xl font-bold" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+              Tracteurs disponibles
+            </h2>
+            <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>{filtered.length} résultat(s)</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          {filtered.map(t => (
+            <div key={t.id} className="group rounded-2xl overflow-hidden border transition-all duration-300 hover:border-[#2F6B3F]"
+              style={{ borderColor: "rgba(255,255,255,0.12)", background: "#1C1C1C" }}>
+              <div className="flex flex-col sm:flex-row">
+                {/* Photo */}
+                <div className="relative sm:w-64 h-48 sm:h-auto shrink-0 overflow-hidden">
+                  <ImageGallery images={t.images} alt={t.name} className="h-full w-full" />
+                  <button className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center z-10"
+                    style={{ background: "rgba(15,15,15,0.7)" }}>
+                    <Heart size={15} color="#FFFFFF" />
+                  </button>
+                </div>
+
+                {/* Contenu */}
+                <div className="flex-1 p-4 flex flex-col sm:flex-row sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base mb-2" style={{ color: "#FFFFFF" }}>{t.name}</h3>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Pill><Gauge size={11} className="inline mr-1" />{t.power} HP/{Math.round(t.power * 0.7355)} kW</Pill>
+                      <Pill>YOM {t.year}</Pill>
+                      <Pill>{t.transmission}</Pill>
+                    </div>
+                    <p className="text-xs mb-3 line-clamp-2" style={{ color: "#9CA3AF" }}>{t.use} — {t.location}, {t.country}.</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0" style={{ background: "#242424" }}>
+                        <Tractor size={13} color="#7ED9A0" />
+                      </div>
+                      <div className="leading-tight">
+                        <p className="text-xs font-semibold" style={{ color: "#FFFFFF" }}>TractoRent Partner</p>
+                        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{t.location}, {t.country}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-2 sm:text-right shrink-0">
+                    <span className="text-xl font-bold" style={{ color: "#FFFFFF" }}>{t.day} €</span>
+                    <span className="text-[11px]" style={{ color: "#9CA3AF" }}>incl. VAT 20% / jour</span>
+                    <button onClick={() => openBooking(t)} className="mt-1 text-xs font-semibold px-4 py-2 rounded-2xl transition-all duration-300 hover:brightness-110"
+                      style={{ background: "#F0A83A", color: "#1A1A1A" }}>
+                      Réserver
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bandeau bicolore */}
+              <div className="flex items-center justify-between px-4 py-2 text-xs font-medium" style={{ background: "#1B4B2A", color: "#FFFFFF" }}>
+                <span>Rental machine · Tractors / {t.brand}</span>
+                <span className="flex items-center gap-1">
+                  Premium Plus dealer <BadgeCheck size={14} color="#FFFFFF" />
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <FieldDivider />
+
+      {/* COMMENT CA MARCHE */}
+      <section id="fonctionnement" className="max-w-6xl mx-auto px-5 py-16">
+        <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: "#2F6B3F" }}>Processus</p>
+        <h2 className="text-2xl md:text-3xl font-bold mb-10" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+          Comment ça fonctionne
+        </h2>
+        <div className="grid md:grid-cols-4 gap-8 relative">
+          <div className="hidden md:block absolute top-6 left-0 right-0 h-px" style={{
+            background: "linear-gradient(90deg, transparent, rgba(47,107,63,0.15), rgba(47,107,63,0.1), transparent)"
+          }} />
+          {[
+            ["Cherchez", "Filtrez par pays, puissance ou marque."],
+            ["Choisissez", "Sélectionnez la durée et les options."],
+            ["Envoyez", "Votre demande part directement par email."],
+            ["Confirmez", "Notre équipe répond avec les conditions finales."],
+          ].map(([title, text], i) => (
+            <div key={i} className="relative">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold mb-4 relative z-10 border"
+                style={{
+                  background: "#1C1C1C", color: "#2F6B3F", borderColor: "rgba(47,107,63,0.15)",
+                  fontFamily: "'Space Grotesk', sans-serif", boxShadow: "0 0 16px rgba(47,107,63,0.15)"
+                }}>
+                0{i + 1}
+              </div>
+              <h3 className="font-semibold mb-1" style={{ color: "#FFFFFF" }}>{title}</h3>
+              <p className="text-sm" style={{ color: "#9CA3AF" }}>{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* TEMOIGNAGES */}
+      <section id="temoignages" className="py-16" style={{ background: "#1C1C1C" }}>
+        <div className="max-w-6xl mx-auto px-5">
+          <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: "#2F6B3F" }}>Témoignages</p>
+          <h2 className="text-2xl md:text-3xl font-bold mb-10" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+            Ils nous font confiance
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              ["Exploitant, Beauce", "Réservation simple et réponse rapide par email, sans relance téléphonique."],
+              ["Coopérative, Meknès", "Le choix de tracteurs par puissance nous a fait gagner un temps précieux."],
+              ["Entrepreneur agricole, Andalousie", "Les conditions de caution sont claires une fois la durée choisie."],
+            ].map(([who, quote], i) => (
+              <div key={i} className="p-6 rounded-2xl border transition-all duration-300 hover:-translate-y-1"
+                style={{ background: "#0F0F0F", borderColor: "rgba(255,255,255,0.08)" }}>
+                <div className="flex gap-0.5 mb-3">
+                  {Array.from({ length: 5 }).map((_, s) => (
+                    <Star key={s} size={13} fill="#2F6B3F" color="#2F6B3F" />
+                  ))}
+                </div>
+                <p className="text-sm mb-5" style={{ color: "#FFFFFF" }}>{quote}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{ background: "#2F6B3F", color: "white" }}>
+                    {who.charAt(0)}
+                  </div>
+                  <p className="text-xs font-semibold" style={{ color: "#9CA3AF" }}>{who}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CONTACT / FOOTER */}
+      <section id="contact" className="py-16" style={{ background: "#173626" }}>
+        <div className="max-w-6xl mx-auto px-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>
+              Une question ? Écrivez-nous.
+            </h2>
+            <a href="mailto:tractorent@mail4.uk" className="text-sm flex items-center gap-2 w-fit transition-colors duration-200"
+              style={{ color: "#7ED9A0" }}>
+              <Mail size={15} /> tractorent@mail4.uk
+            </a>
+          </div>
+          <Logo dark />
+        </div>
+      </section>
+      </>
+      )}
+
+      {page === "blog" && (
+        <BlogListing articles={allArticles} onOpen={openArticle} />
+      )}
+
+      {page === "article" && (
+        <BlogArticlePage
+          article={allArticles.find(a => a.slug === activeSlug)}
+          articles={allArticles}
+          onBack={goBlog}
+          onOpen={openArticle}
+          onSeeCatalogue={() => { setPage("home"); setTimeout(() => { const el = document.getElementById("catalogue"); if (el) el.scrollIntoView(); }, 0); }}
+        />
+      )}
+
+      {/* BOOKING MODAL */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,17,40,0.6)" }}>
+          <div className="rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#1C1C1C" }}>
+            <div className="relative">
+              <ImageGallery images={selected.images} alt={selected.name} className="w-full h-40" />
+              <button onClick={() => setSelected(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center z-10"
+                style={{ background: "rgba(10,17,40,0.7)" }}>
+                <X size={16} color="white" />
+              </button>
+            </div>
+            <div className="p-5 pb-0 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              <h3 className="font-bold pb-4" style={{ color: "#FFFFFF" }}>{selected.name}</h3>
+            </div>
+
+            {!submitted ? (
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Date de début</label>
+                  <input type="date" value={booking.start}
+                    onChange={e => setBooking({ ...booking, start: e.target.value })}
+                    className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Durée</label>
+                    <select value={booking.duration} onChange={e => setBooking({ ...booking, duration: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }}>
+                      <option value="day">Par jour</option>
+                      <option value="week">Par semaine</option>
+                      <option value="month">Par mois</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Quantité</label>
+                    <input type="number" min={1} value={booking.qty}
+                      onChange={e => setBooking({ ...booking, qty: parseInt(e.target.value) || 1 })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                </div>
+
+                {showTerms && (
+                  <div className="rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                    <table className="w-full text-sm">
+                      <thead style={{ background: "#0F0F0F" }}>
+                        <tr>
+                          <th className="text-left font-semibold px-3 py-2" style={{ color: "#9CA3AF" }}>Détail</th>
+                          <th className="text-right font-semibold px-3 py-2" style={{ color: "#9CA3AF" }}>Montant</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                          <td className="px-3 py-2" style={{ color: "#FFFFFF" }}>
+                            Durée : {booking.qty} {booking.duration === "day" ? "jour(s)" : booking.duration === "week" ? "semaine(s)" : "mois"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium" style={{ color: "#FFFFFF" }}>{totalPrice.toLocaleString()} €</td>
+                        </tr>
+                        <tr className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(47,107,63,0.1)" }}>
+                          <td className="px-3 py-2 font-medium" style={{ color: "#2F6B3F" }}>Caution obligatoire</td>
+                          <td className="px-3 py-2 text-right font-semibold" style={{ color: "#FFFFFF" }}>{selected.deposit.toLocaleString()} €</td>
+                        </tr>
+                        <tr className="border-t-2" style={{ borderColor: "#2F6B3F" }}>
+                          <td className="px-3 py-2 font-bold" style={{ color: "#FFFFFF" }}>Total à prévoir</td>
+                          <td className="px-3 py-2 text-right font-bold" style={{ color: "#FFFFFF", fontSize: "1.05em" }}>{(totalPrice + selected.deposit).toLocaleString()} €</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p className="text-xs p-3" style={{ color: "#9CA3AF" }}>
+                      La caution s'affiche automatiquement une fois la durée choisie. Elle est restituée à la fin de la location, sous réserve de l'état du matériel.
+                    </p>
+                  </div>
+                )}
+
+                {showTerms && (
+                  <form className="space-y-3 pt-2" onSubmit={e => { e.preventDefault(); setSubmitted(true); }}>
+                    <input required placeholder="Nom complet" className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                    <input required type="email" placeholder="Email" className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                    <input required placeholder="Pays" className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                    <input placeholder="Téléphone (optionnel)" className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                    <textarea placeholder="Message" rows={2} className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                    <button type="submit" className="w-full py-2.5 rounded-2xl font-semibold text-sm transition-all duration-300 hover:scale-105 hover:brightness-110"
+                      style={{ background: "#F0A83A", color: "#1A1A1A" }}>
+                      Envoyer la demande
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(34,197,94,0.15)", boxShadow: "0 0 16px rgba(34,197,94,0.3)" }}>
+                  <Check size={22} color="#22C55E" />
+                </div>
+                <p className="font-semibold mb-1" style={{ color: "#FFFFFF" }}>Votre demande a été envoyée.</p>
+                <p className="text-sm" style={{ color: "#9CA3AF" }}>Notre équipe vous répondra par email.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CHAT ASSISTANT */}
+      <button onClick={() => setChatOpen(!chatOpen)}
+        className="fixed bottom-5 right-5 w-14 h-14 rounded-full shadow-xl flex items-center justify-center z-40 transition-transform duration-300 hover:scale-110"
+        style={{ background: "#2F6B3F", boxShadow: "0 4px 14px rgba(47,107,63,0.35)" }}>
+        <MessageCircle size={22} color="white" />
+      </button>
+      {chatOpen && (
+        <div className="fixed bottom-24 right-5 w-72 rounded-2xl shadow-2xl overflow-hidden z-40" style={{ background: "#1C1C1C" }}>
+          <div className="p-3 flex items-center gap-2" style={{ background: "#2F6B3F" }}>
+            <Bot size={16} color="white" />
+            <span className="text-sm font-semibold" style={{ color: "#FFFFFF" }}>Assistant TractoRent</span>
+          </div>
+          <div className="p-3 text-sm" style={{ color: "#FFFFFF" }}>
+            Bonjour 👋 Je peux vous aider à choisir un tracteur ou expliquer les conditions de location. (Démo)
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   ADMIN
+--------------------------------------------------------- */
+
+const EMPTY_TRACTOR = {
+  name: "", brand: "", country: "", location: "", power: "", year: "",
+  transmission: "", use: "", day: "", week: "", month: "", deposit: "",
+  rating: 4.5, images: [FALLBACK_IMG]
+};
+
+function AdminPanel({ goSite }) {
+  const [tab, setTab] = useState("dashboard");
+  const [tractors, setTractors] = useState(TRACTORS);
+  const [email, setEmail] = useState("tractorent@mail4.uk");
+
+  // Formulaire d'ajout / modification de tracteur
+  const [formOpen, setFormOpen] = useState(false);
+  const [formData, setFormData] = useState(EMPTY_TRACTOR);
+  const [editingId, setEditingId] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Paramètres SITE (maintenant modifiables et enregistrables)
+  const [siteName, setSiteName] = useState("TractoRent");
+  const [seoTitle, setSeoTitle] = useState("TractoRent — Location de tracteurs à l'international");
+  const [seoDesc, setSeoDesc] = useState("Comparez et réservez des tracteurs partout dans le monde.");
+  const [siteSaved, setSiteSaved] = useState(false);
+
+  const tabs = [
+    { id: "dashboard", label: "Tableau de bord", icon: <LayoutDashboard size={16} /> },
+    { id: "tractors", label: "Tracteurs", icon: <Tractor size={16} /> },
+    { id: "bookings", label: "Réservations", icon: <ClipboardList size={16} /> },
+    { id: "site", label: "SITE", icon: <Settings size={16} /> },
+    { id: "ai", label: "AI Command Center", icon: <Bot size={16} /> },
+  ];
+
+  function removeTractor(id) {
+    setTractors(tractors.filter(t => t.id !== id));
+  }
+
+  function openAddForm() {
+    setEditingId(null);
+    setFormData(EMPTY_TRACTOR);
+    setFormOpen(true);
+  }
+
+  function openEditForm(t) {
+    setEditingId(t.id);
+    setFormData({ ...t });
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+  }
+
+  function addImageUrl(url) {
+    const clean = url.trim();
+    if (!clean) return;
+    setFormData(f => ({ ...f, images: [...(f.images || []).filter(i => i !== FALLBACK_IMG), clean] }));
+  }
+
+  function removeImageAt(index) {
+    setFormData(f => {
+      const next = (f.images || []).filter((_, i) => i !== index);
+      return { ...f, images: next.length ? next : [FALLBACK_IMG] };
+    });
+  }
+
+  function handleImageFiles(fileList) {
+    Array.from(fileList).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData(f => ({ ...f, images: [...(f.images || []).filter(i => i !== FALLBACK_IMG), reader.result] }));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function saveTractorForm(e) {
+    e.preventDefault();
+    const clean = {
+      ...formData,
+      power: Number(formData.power) || 0,
+      year: Number(formData.year) || new Date().getFullYear(),
+      day: Number(formData.day) || 0,
+      week: Number(formData.week) || 0,
+      month: Number(formData.month) || 0,
+      deposit: Number(formData.deposit) || 0,
+      rating: Number(formData.rating) || 4.5,
+      images: formData.images && formData.images.length ? formData.images : [FALLBACK_IMG],
+    };
+    if (editingId) {
+      setTractors(tractors.map(t => t.id === editingId ? { ...clean, id: editingId } : t));
+    } else {
+      const nextId = tractors.length ? Math.max(...tractors.map(t => t.id)) + 1 : 1;
+      setTractors([...tractors, { ...clean, id: nextId }]);
+    }
+    setFormOpen(false);
+  }
+
+  function saveSiteSettings() {
+    setSiteSaved(true);
+    setTimeout(() => setSiteSaved(false), 2500);
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row" style={{ background: "#0F0F0F", fontFamily: "'Inter', sans-serif" }}>
+      {/* Sidebar (desktop) */}
+      <aside className="hidden md:flex w-60 shrink-0 flex-col" style={{ background: "#173626" }}>
+        <div className="p-5"><Logo dark /></div>
+        <nav className="flex-1 px-3 space-y-1">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm text-left"
+              style={{
+                background: tab === t.id ? "#FFFFFF" : "transparent",
+                color: tab === t.id ? "#173626" : "#BFE3C8",
+                fontWeight: tab === t.id ? 600 : 400
+              }}>
+              {t.icon}{t.label}
+            </button>
+          ))}
+        </nav>
+        <button onClick={goSite} className="m-3 text-xs px-3 py-2 rounded-2xl text-left" style={{ color: "#BFE3C8" }}>
+          ← Retour au site
+        </button>
+      </aside>
+
+      {/* Top bar + tab strip (mobile) */}
+      <div className="md:hidden sticky top-0 z-20" style={{ background: "#173626" }}>
+        <div className="flex items-center justify-between px-4 py-3">
+          <Logo dark />
+          <button onClick={goSite} className="text-xs px-2 py-1 rounded-md" style={{ color: "#BFE3C8" }}>
+            ← Site
+          </button>
+        </div>
+        <nav className="flex gap-1 px-3 pb-2 overflow-x-auto">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs whitespace-nowrap shrink-0"
+              style={{
+                background: tab === t.id ? "#FFFFFF" : "transparent",
+                color: tab === t.id ? "#173626" : "#BFE3C8",
+                fontWeight: tab === t.id ? 600 : 400
+              }}>
+              {t.icon}{t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto min-w-0">
+        {tab === "dashboard" && (
+          <div>
+            <h1 className="text-2xl font-bold mb-6" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>Tableau de bord</h1>
+            <div className="grid md:grid-cols-4 gap-4 mb-8">
+              {[
+                ["Visiteurs (30j)", "8 420"],
+                ["Réservations", "63"],
+                ["Revenus estimés", "142 300 €"],
+                ["Taux de conversion", "0.75%"],
+              ].map(([label, value], i) => (
+                <div key={i} className="p-5 rounded-2xl border" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                  <p className="text-xs mb-1" style={{ color: "#9CA3AF" }}>{label}</p>
+                  <p className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="p-5 rounded-2xl border" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+              <h3 className="font-semibold mb-3 flex items-center gap-2" style={{ color: "#FFFFFF" }}>
+                <BarChart3 size={16} /> Activité récente
+              </h3>
+              <ul className="space-y-2 text-sm">
+                {AI_LOG.slice(0, 4).map((l, i) => (
+                  <li key={i} className="flex gap-3" style={{ color: "#9CA3AF" }}>
+                    <span className="font-mono text-xs shrink-0">{l.time}</span>
+                    <span>{l.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {tab === "tractors" && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>Gestion des tracteurs</h1>
+              <button onClick={openAddForm} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-2xl transition-all duration-300 hover:scale-105 hover:brightness-110"
+                style={{ background: "linear-gradient(135deg, #1B4B2A, #2F6B3F)", color: "#FFFFFF", boxShadow: "0 0 14px rgba(47,107,63,0.15)" }}><Plus size={16} /> Ajouter</button>
+            </div>
+            <div className="rounded-2xl border overflow-x-auto" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+              <table className="w-full text-sm" style={{ minWidth: "520px" }}>
+                <thead style={{ background: "#0F0F0F" }}>
+                  <tr className="text-left" style={{ color: "#9CA3AF" }}>
+                    <th className="p-3"></th><th className="p-3">Modèle</th><th className="p-3">Pays</th>
+                    <th className="p-3">Prix / jour</th><th className="p-3">Caution</th><th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tractors.map(t => (
+                    <tr key={t.id} className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                      <td className="p-3">
+                        <img src={(t.images && t.images[0]) || FALLBACK_IMG} onError={e => { e.currentTarget.src = FALLBACK_IMG; }}
+                          alt={t.name} className="w-12 h-9 object-cover rounded-lg" style={{ border: "1px solid rgba(255,255,255,0.08)" }} />
+                      </td>
+                      <td className="p-3 font-medium" style={{ color: "#FFFFFF" }}>{t.name}</td>
+                      <td className="p-3" style={{ color: "#9CA3AF" }}>{t.country}</td>
+                      <td className="p-3 font-semibold" style={{ color: "#FFFFFF" }}>{t.day} €</td>
+                      <td className="p-3" style={{ color: "#9CA3AF" }}>{t.deposit} €</td>
+                      <td className="p-3">
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => openEditForm(t)}><Pencil size={14} color="#6B6B6B" /></button>
+                          <button onClick={() => removeTractor(t.id)}><Trash2 size={14} color="#EF4444" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL FORMULAIRE TRACTEUR (Ajout / Modification) */}
+        {formOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+            <div className="rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#1C1C1C" }}>
+              <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <h3 className="font-bold" style={{ color: "#FFFFFF" }}>
+                  {editingId ? "Modifier le tracteur" : "Ajouter un tracteur"}
+                </h3>
+                <button onClick={closeForm}><X size={18} color="#9CA3AF" /></button>
+              </div>
+              <form onSubmit={saveTractorForm} className="p-5 space-y-3">
+                {/* PHOTOS — grille de vignettes + bouton "+" fiable (déclenché en JS) */}
+                <div className="p-3 rounded-2xl" style={{ background: "#0F0F0F", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-semibold" style={{ color: "#9CA3AF" }}>Photos du tracteur</label>
+                    <span className="text-xs" style={{ color: "#6B6B6B" }}>
+                      {(formData.images || []).filter(i => i !== FALLBACK_IMG).length} photo(s)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {(formData.images || []).filter(i => i !== FALLBACK_IMG).map((img, i) => (
+                      <div key={i} className="relative">
+                        <img src={img} onError={e => { e.currentTarget.src = FALLBACK_IMG; }}
+                          alt={`photo ${i + 1}`} className="w-full h-20 object-cover rounded-xl block" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
+                        {i === 0 && (
+                          <span className="absolute bottom-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: "rgba(0,0,0,0.7)", color: "#7ED9A0" }}>
+                            Principale
+                          </span>
+                        )}
+                        <button type="button" onClick={() => removeImageAt(formData.images.indexOf(img))}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center"
+                          style={{ background: "#EF4444", boxShadow: "0 2px 6px rgba(0,0,0,0.4)" }}>
+                          <X size={13} color="white" />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button type="button" onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                      className="h-20 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform duration-150"
+                      style={{ borderColor: "#2F6B3F", background: "rgba(47,107,63,0.12)" }}>
+                      <Plus size={24} color="#2F6B3F" />
+                      <span className="text-[10px] font-semibold" style={{ color: "#2F6B3F" }}>Ajouter</span>
+                    </button>
+                  </div>
+
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple
+                    style={{ display: "none" }}
+                    onChange={e => { if (e.target.files && e.target.files.length) handleImageFiles(e.target.files); e.target.value = ""; }} />
+
+                  <details className="mt-3">
+                    <summary className="text-xs cursor-pointer select-none" style={{ color: "#6B6B6B" }}>ou ajouter via un lien d'image</summary>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input id="image-url-input" placeholder="Coller un lien d'image, puis Entrée"
+                        onKeyDown={e => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addImageUrl(e.currentTarget.value);
+                            e.currentTarget.value = "";
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C", color: "#FFFFFF" }} />
+                      <button type="button" onClick={() => {
+                        const input = document.getElementById("image-url-input");
+                        addImageUrl(input.value);
+                        input.value = "";
+                      }} className="px-3 py-2 rounded-2xl text-sm font-semibold shrink-0"
+                        style={{ background: "rgba(47,107,63,0.15)", color: "#2F6B3F" }}>
+                        Ajouter
+                      </button>
+                    </div>
+                  </details>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Nom du modèle</label>
+                    <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Marque</label>
+                    <input required value={formData.brand} onChange={e => setFormData({ ...formData, brand: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Pays</label>
+                    <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Région / Ville</label>
+                    <input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Puissance (ch)</label>
+                    <input required type="number" value={formData.power} onChange={e => setFormData({ ...formData, power: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Année</label>
+                    <input required type="number" value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Transmission</label>
+                    <input value={formData.transmission} onChange={e => setFormData({ ...formData, transmission: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Usage recommandé</label>
+                    <input value={formData.use} onChange={e => setFormData({ ...formData, use: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Prix / jour (€)</label>
+                    <input required type="number" value={formData.day} onChange={e => setFormData({ ...formData, day: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Prix / semaine (€)</label>
+                    <input type="number" value={formData.week} onChange={e => setFormData({ ...formData, week: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Prix / mois (€)</label>
+                    <input type="number" value={formData.month} onChange={e => setFormData({ ...formData, month: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "#9CA3AF" }}>Caution (€)</label>
+                    <input required type="number" value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })}
+                      className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={closeForm} className="flex-1 py-2.5 rounded-2xl font-semibold text-sm"
+                    style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.15)", color: "#9CA3AF" }}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="flex-1 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-300 hover:scale-105 hover:brightness-110"
+                    style={{ background: "linear-gradient(135deg, #1B4B2A, #2F6B3F)", color: "#FFFFFF" }}>
+                    {editingId ? "Enregistrer les modifications" : "Ajouter le tracteur"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {tab === "bookings" && (
+          <div>
+            <h1 className="text-2xl font-bold mb-6" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>Réservations</h1>
+            <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+              {[
+                ["Amine B.", "Case IH Puma 240", "En attente"],
+                ["Julien F.", "John Deere 6155R", "Acceptée"],
+                ["Marta G.", "Massey Ferguson 5713", "Refusée"],
+              ].map(([name, tractor, status], i) => (
+                <div key={i} className="flex items-center justify-between p-4 border-b last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div>
+                    <p className="font-medium text-sm" style={{ color: "#FFFFFF" }}>{name}</p>
+                    <p className="text-xs" style={{ color: "#9CA3AF" }}>{tractor}</p>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{
+                    background: status === "Acceptée" ? "rgba(34,197,94,0.15)" : status === "Refusée" ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.12)",
+                    color: status === "Acceptée" ? "#22C55E" : status === "Refusée" ? "#EF4444" : "#6B6B6B"
+                  }}>{status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "site" && (
+          <div>
+            <h1 className="text-2xl font-bold mb-6" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>SITE</h1>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="p-5 rounded-2xl border space-y-3" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                <h3 className="font-semibold" style={{ color: "#FFFFFF" }}>Email officiel</h3>
+                <input value={email} onChange={e => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                <p className="text-xs" style={{ color: "#9CA3AF" }}>Utilisée pour toutes les communications du site.</p>
+              </div>
+              <div className="p-5 rounded-2xl border space-y-3" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                <h3 className="font-semibold" style={{ color: "#FFFFFF" }}>Nom du site</h3>
+                <input value={siteName} onChange={e => setSiteName(e.target.value)} className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+              </div>
+              <div className="p-5 rounded-2xl border space-y-3" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                <h3 className="font-semibold" style={{ color: "#FFFFFF" }}>SEO</h3>
+                <input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+                <textarea value={seoDesc} onChange={e => setSeoDesc(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-2xl border text-sm" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0F0F0F", color: "#FFFFFF" }} />
+              </div>
+              <div className="p-5 rounded-2xl border space-y-3" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                <h3 className="font-semibold" style={{ color: "#FFFFFF" }}>Couleurs</h3>
+                <div className="flex gap-2">
+                  {["#2F6B3F", "#2F6B3F", "#2F6B3F", "#22C55E", "#EF4444"].map(c => (
+                    <div key={c} className="w-8 h-8 rounded-md border" style={{ background: c, borderColor: "rgba(255,255,255,0.08)" }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-6">
+              <button onClick={saveSiteSettings} className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-2xl transition-all duration-300 hover:scale-105 hover:brightness-110"
+                style={{ background: "linear-gradient(135deg, #1B4B2A, #2F6B3F)", color: "#FFFFFF", boxShadow: "0 0 14px rgba(47,107,63,0.15)" }}>
+                <Check size={16} /> Enregistrer
+              </button>
+              {siteSaved && (
+                <span className="text-sm font-medium" style={{ color: "#22C55E" }}>Modifications enregistrées ✓</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === "ai" && (
+          <div>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: "#FFFFFF", fontFamily: "'Space Grotesk', sans-serif" }}>AI Command Center</h1>
+            <p className="text-sm mb-6" style={{ color: "#9CA3AF" }}>Aperçu — nécessite un backend planifié pour tourner réellement en continu.</p>
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              {[
+                { icon: <TrendingUp size={16} />, title: "AI Growth Director", desc: "SEO, contenu, articles de blog" },
+                { icon: <Sparkles size={16} />, title: "AI Market Intelligence", desc: "Tendances et opportunités marché" },
+                { icon: <Bot size={16} />, title: "AI Customer Assistant", desc: "Support client 24/7" },
+              ].map((a, i) => (
+                <div key={i} className="p-5 rounded-2xl border" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center mb-3" style={{ background: "rgba(47,107,63,0.15)", color: "#2F6B3F", boxShadow: "0 0 12px rgba(47,107,63,0.15)" }}>{a.icon}</div>
+                  <h3 className="font-semibold text-sm mb-1" style={{ color: "#FFFFFF" }}>{a.title}</h3>
+                  <p className="text-xs" style={{ color: "#9CA3AF" }}>{a.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div className="p-5 rounded-2xl border" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1C1C1C" }}>
+              <h3 className="font-semibold mb-3" style={{ color: "#FFFFFF" }}>Rapport des dernières 24h</h3>
+              <ul className="space-y-3 text-sm">
+                {AI_LOG.map((l, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="font-mono text-xs shrink-0 w-12" style={{ color: "#9CA3AF" }}>{l.time}</span>
+                    <div>
+                      <span className="font-semibold text-xs" style={{ color: "#2F6B3F" }}>{l.who}</span>
+                      <p style={{ color: "#FFFFFF" }}>{l.text}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   ROOT
+--------------------------------------------------------- */
+
+function App() {
+  const [view, setView] = useState("site");
+  return (
+    <>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');`}</style>
+      {view === "site"
+        ? <PublicSite goAdmin={() => setView("admin")} />
+        : <AdminPanel goSite={() => setView("site")} />}
+    </>
+  );
+}
+
+
+const rootEl = document.getElementById("root");
+const root = ReactDOM.createRoot(rootEl);
+root.render(<App />);
+
+</script>
+</body>
+</html>
