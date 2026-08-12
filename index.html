@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TractoRent - Version Corrigée</title>
+
+    <!-- 1. Chargement de React et ReactDOM en mode UMD -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 2. Chargement de Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+<body>
+    <!-- Point d'ancrage de l'application -->
+    <div id="root"></div>
+
+    <!-- 3. Le script qui charge, compile avec la correction, et exécute le JSX -->
+    <script>
+        fetch('./rep1.jsx')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Le fichier rep1.jsx est introuvable dans ce dépôt.");
+                }
+                return response.text();
+            })
+            .then(source => {
+                const compiledCode = Babel.transform(source, {
+                    presets: [
+                        ['react', { runtime: 'classic' }] 
+                    ]
+                }).code;
+                new Function(compiledCode)();
+            })
+            .catch(error => {
+                console.error('Erreur de chargement ou de compilation :', error);
+                document.getElementById('root').innerHTML = `
+                    <div style="color:white; background:#173626; padding:20px; text-align:center; font-family:sans-serif;">
+                        <h1>Erreur de lancement</h1>
+                        <p>Le fichier <b>rep1.jsx</b> est introuvable ou mal formaté.</p>
+                        <p style="font-size:0.8rem; opacity:0.7;">Assurez-vous que ce fichier HTML et le fichier rep1.jsx sont bien ensemble dans le même dossier.</p>
+                    </div>
+                `;
+            });
+    </script>
+</body>
+</html>
