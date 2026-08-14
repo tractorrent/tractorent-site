@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="TractoRent — location de tracteurs premium et standard en ligne. Réservez le tracteur idéal en quelques clics, partout en France." />
+<meta name="theme-color" content="#1b9842" />
+<meta property="og:title" content="TractoRent — Location de tracteurs" />
+<meta property="og:description" content="Un catalogue de tracteurs premium et standard, réservables directement en ligne." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚜</text></svg>" />
+<title>TractoRent — Location de tracteurs en ligne</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #121212; }
+  #error-box { display: none; color: #ff6b6b; background: #1a0000; font-family: monospace; padding: 16px; white-space: pre-wrap; font-size: 13px; }
+</style>
+<script>
+  window.onerror = function (msg, url, line, col, error) {
+    console.error('[TractoRent]', msg, 'ligne', line, 'colonne', col, error);
+    var box = document.getElementById('error-box');
+    if (!box) return false;
+    var isDebug = /(?:^|[?&])debug=1(?:&|$)/.test(window.location.search);
+    box.style.display = 'block';
+    box.textContent = isDebug
+      ? 'ERREUR : ' + msg + '\n(ligne ' + line + ', colonne ' + col + ')\n\n' + (error && error.stack ? error.stack : '')
+      : "Une erreur est survenue. Merci de réessayer ou de nous contacter si le problème persiste.";
+    return false;
+  };
+</script>
+</head>
+<body>
+<div id="error-box"></div>
+<div id="root"></div>
+<script type="text/plain" id="app-source">
+// ===========================================================================
+// 1. CARROUSEL D'IMAGES
+// ===========================================================================
+const ImageSlider = React.memo(({ images, alt }) => {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [touchStart, setTouchStart] = React.useState(0);
+  const [touchEnd, setTouchEnd] = React.useState(0);
+  const [imageErrors, setImageErrors] = React.useState({});
+
+  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
+  const handleTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 50) handleNext();
+    if (touchStart - touchEnd < -50) handlePrev();
+  };
+
+  const handleNext = () => setCurrentIndex((prev) => (prev + 1) % images.length);
+  const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+
+  const handleImageError = (idx) => {
+    setImageErrors(prev => ({ ...prev, [idx]: true }));
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '180px', backgroundColor: '#2a2a2a', borderRadius: '12px', overflow: 'hidden', userSelect: 'none' }} 
+         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+      {imageErrors[currentIndex] ? (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '60px', backgroundColor: '#1a1a1a' }}>🚜</div>
+      ) : (
+        <img src={images[currentIndex]} alt={alt || 'Tracteur'} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => handleImageError(currentIndex)} />
+      )}
+      <button onClick={handlePrev} aria-label="Image précédente" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', padding: '8px 12px', borderRadius: '50%', cursor: 'pointer', zIndex: 10 }}>❮</button>
+      <button onClick={handleNext} aria-label="Image suivante" style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', padding: '8px 12px', borderRadius: '50%', cursor: 'pointer', zIndex: 10 }}>❯</button>
+      <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px', zIndex: 10 }}>
+        {images.map((_, idx) => (
+          <div key={idx} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: idx === currentIndex ? '#1b9842' : 'rgba(255,255,255,0.5)' }} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+// ===========================================================================
+// 2. WIDGET IA FLOTTANT
+// ===========================================================================
+function ChatWidget({ settings, isChatOpen, setIsChatOpen, chatMessages, setChatMessages, chatInput, setChatInput, isAiLoading, setIsAiLoading }) {
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+    const userMessage = { role: 'user', content: chatInput };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setIsAiLoading(true);
+
+    if (!settings.openAiApiKey) {
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: "🤖 Assistant TractoRent. Configurez votre clé API dans l'Admin." }]);
+        setIsAiLoading(false);
+      }, 1200);
+      return;
+    }
+    try {
+      const response = await fetch(settings.iaAgentApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.openAiApiKey}` },
+        body: JSON.stringify({ model: "gpt-3.5-turbo", messages: [{ role: "system", content: settings.iaAgentSystemMessage }, ...chatMessages, userMessage] })
+      });
+      const data = await response.json();
+      if (data.choices && data.choices.length > 0) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
+      } else { setChatMessages(prev => [...prev, { role: 'assistant', content: "Erreur de réponse IA." }]); }
+    } catch (error) { setChatMessages(prev => [...prev, { role: 'assistant', content: "Erreur de connexion IA." }]); }
+    setIsAiLoading(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 999 }}>
+      <div onClick={() => setIsChatOpen(!isChatOpen)} role="button" tabIndex={0} aria-label={isChatOpen ? "Fermer l'assistant" : "Ouvrir l'assistant"}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsChatOpen(!isChatOpen); }}
+        style={{ backgroundColor: settings.primaryColor, width: '65px', height: '65px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 8px 25px rgba(0,0,0,0.6)' }}>
+        <span style={{ fontSize: '32px', color: '#fff' }}>🤖</span>
+      </div>
+      {isChatOpen && (
+        <div style={{ position: 'absolute', bottom: '80px', right: '0', width: '320px', height: '450px', backgroundColor: '#262626', borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #444' }}>
+          <div style={{ padding: '15px', backgroundColor: settings.primaryColor, color: '#fff', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+            <span>🤖 Agent IA 24h/24</span>
+            <span onClick={() => setIsChatOpen(false)} role="button" tabIndex={0} aria-label="Fermer le chat" style={{ cursor: 'pointer' }}>✕</span>
+          </div>
+          <div style={{ flex: 1, padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#1f1f1f' }}>
+            {chatMessages.map((msg, idx) => (
+              <div key={idx} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%', padding: '10px 15px', borderRadius: '12px', backgroundColor: msg.role === 'user' ? settings.primaryColor : '#333', color: '#fff', fontSize: '14px' }}>
+                {msg.content}
+              </div>
+            ))}
+            {isAiLoading && <div style={{ alignSelf: 'flex-start', color: '#888', fontSize: '12px' }}>L'IA réfléchit...</div>}
+          </div>
+          <div style={{ padding: '10px', borderTop: '1px solid #444', display: 'flex', gap: '10px', backgroundColor: '#262626' }}>
+            <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Posez votre question..." style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#1a1a1a', color: '#fff', fontSize: '14px', outline: 'none' }} />
+            <button onClick={handleSendMessage} style={{ backgroundColor: settings.primaryColor, border: 'none', padding: '0 15px', borderRadius: '8px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Envoyer</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// 3. COMPOSANT PRINCIPAL APP
+// ===========================================================================
+function App() {
+  const EMAILJS_PUBLIC_KEY = "v8i4HYlYabYFTM2vd";
+  const EMAILJS_SERVICE_ID = "service_deyxbme";
+  const EMAILJS_TEMPLATE_ID = "template_kdoh9kb";
+  const EMAILJS_RECEIPT_TEMPLATE_ID = "template_7in9ka8";
+  const todayISO = new Date().toISOString().slice(0, 10);
+
+  const [isAdminMode, setIsAdminMode] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [adminPassword, setAdminPassword] = React.useState('');
+  const [editingTractorId, setEditingTractorId] = React.useState(null);
+  const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const [chatMessages, setChatMessages] = React.useState([]);
+  const [chatInput, setChatInput] = React.useState('');
+  const [isAiLoading, setIsAiLoading] = React.useState(false);
+  const [message, setMessage] = React.useState('');
+  const [selectedTractor, setSelectedTractor] = React.useState(null);
+  const [showModal, setShowModal] = React.useState(false);
+  const [bookingData, setBookingData] = React.useState({ name: '', email: '', phone: '', days: 1, startDate: '' });
+  const [isSubmittingBooking, setIsSubmittingBooking] = React.useState(false);
+  const [categoryFilter, setCategoryFilter] = React.useState('Toutes');
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const [blogPosts, setBlogPosts] = React.useState([]);
+  const [isBlogLoading, setIsBlogLoading] = React.useState(false);
+
+  const defaultTractors = [
+    { id: 1, name: "Steyr 6150 Profi", model: "Stage V", pricePerDay: 280, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 2, name: "Lamborghini Spark", model: "125 VRT", pricePerDay: 350, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 3, name: "Fendt 728 Vario", model: "Gen7 Profi+", pricePerDay: 420, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 4, name: "Claas Arion 570", model: "CMATIC CEBIS", pricePerDay: 240, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 5, name: "New Holland T6.180", model: "Auto Command", pricePerDay: 190, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 6, name: "John Deere 6210R", model: "Premium Edition", pricePerDay: 390, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 7, name: "Kubota M7-171", model: "Premium KVT", pricePerDay: 160, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1551334784-c5402ef6356b?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 8, name: "Case IH Puma 240", model: "CVXDrive", pricePerDay: 310, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 9, name: "Massey Ferguson 6712S", model: "Dyna-6", pricePerDay: 210, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1551334784-c5402ef6356b?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 10, name: "Deutz-Fahr 6180 TTV", model: "Agrotron", pricePerDay: 230, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 11, name: "Valtra T235", model: "Direct", pricePerDay: 360, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1551334784-c5402ef6356b?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 12, name: "Same Explorer3", model: "90 CVT", pricePerDay: 150, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1551334784-c5402ef6356b?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 13, name: "Zetor Forterra 150", model: "HD", pricePerDay: 175, category: "Standard", images: [
+      "https://images.unsplash.com/photo-1551334784-c5402ef6356b?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590605185932-21c251e85f2a?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1506435287758-bb336e5ef418?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]},
+    { id: 14, name: "John Deere 8R 410", model: "Command Pro", pricePerDay: 480, category: "Premium", images: [
+      "https://images.unsplash.com/photo-1586528116311-ad8edd3a6e40?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1625246333195-58dba73b5158?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1590947134131-44872e050e5e?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80",
+      "https://images.unsplash.com/photo-1535201970725-0941f77542c2?w=400&h=300&fit=crop&auto=format&fm=jpg&q=80"
+    ]}
+  ];
+
+  const defaultSettings = {
+    siteName: "TractoRent",
+    adminEmail: "admin@tractorrent.com",
+    primaryColor: "#1b9842",
+    secondaryColor: "#f59e0b",
+    bgColor: "#121212",
+    fontFamily: "system-ui",
+    iaAgentEnabled: false,
+    iaAgentSystemMessage: "Bonjour, je suis l'assistant premium de TractoRent.",
+    iaAgentApiUrl: "https://api.openai.com/v1/chat/completions",
+    openAiApiKey: "" 
+  };
+
+  const [settings, setSettings] = React.useState(() => {
+    const saved = localStorage.getItem('tractorrent_settings');
+    return saved ? JSON.parse(saved) : defaultSettings;
+  });
+  const [tractors, setTractors] = React.useState(() => {
+    const saved = localStorage.getItem('tractorrent_tractors');
+    return saved ? JSON.parse(saved) : defaultTractors;
+  });
+  const [reservations, setReservations] = React.useState(() => {
+    const saved = localStorage.getItem('tractorrent_reservations');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  React.useEffect(() => localStorage.setItem('tractorrent_settings', JSON.stringify(settings)), [settings]);
+  React.useEffect(() => localStorage.setItem('tractorrent_tractors', JSON.stringify(tractors)), [tractors]);
+  React.useEffect(() => localStorage.setItem('tractorrent_reservations', JSON.stringify(reservations)), [reservations]);
+
+  React.useEffect(() => {
+    if (settings.iaAgentEnabled) {
+      setChatMessages([{ role: 'assistant', content: settings.iaAgentSystemMessage }]);
+    } else { setChatMessages([]); setIsChatOpen(false); }
+  }, [settings.iaAgentEnabled, settings.iaAgentSystemMessage]);
+
+  const fetchBlogPosts = () => {
+    setIsBlogLoading(true);
+    fetch('https://tractorrent.github.io/tractorrent-blog-cron/feed.json')
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => { setBlogPosts(Array.isArray(data) ? data : [data]); setIsBlogLoading(false); })
+      .catch(() => { setBlogPosts([]); setIsBlogLoading(false); });
+  };
+  React.useEffect(() => { fetchBlogPosts(); }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setBookingData(prev => ({ ...prev, [name]: value }));
+  };
+  const calculateTotal = () => {
+    if (!selectedTractor) return 0;
+    return selectedTractor.pricePerDay * parseInt(bookingData.days || 0);
+  };
+
+  const isEmailJsConfigured = () =>
+    typeof window.emailjs !== 'undefined' &&
+    EMAILJS_PUBLIC_KEY && !EMAILJS_PUBLIC_KEY.startsWith('VOTRE_') &&
+    EMAILJS_SERVICE_ID && !EMAILJS_SERVICE_ID.startsWith('VOTRE_') &&
+    EMAILJS_TEMPLATE_ID && !EMAILJS_TEMPLATE_ID.startsWith('VOTRE_');
+
+  const recordReservation = (statusLabel) => {
+    const totalPrice = calculateTotal();
+    const newReservation = { id: Date.now(), tractorName: selectedTractor.name, model: selectedTractor.model, duration: bookingData.days, totalPrice: totalPrice, startDate: bookingData.startDate, clientName: bookingData.name, clientEmail: bookingData.email, clientPhone: bookingData.phone, status: statusLabel };
+    setReservations(prev => [...prev, newReservation]);
+    return newReservation;
+  };
+
+  const submitBooking = (e) => {
+    e.preventDefault();
+    if (isSubmittingBooking) return;
+    const daysNum = parseInt(bookingData.days, 10);
+    if (!bookingData.startDate || bookingData.startDate < todayISO) {
+      setMessage("⚠️ La date de début ne peut pas être dans le passé.");
+      setTimeout(() => setMessage(''), 4000);
+      return;
+    }
+    if (!daysNum || daysNum < 1 || daysNum > 90) {
+      setMessage("⚠️ La durée doit être comprise entre 1 et 90 jours.");
+      setTimeout(() => setMessage(''), 4000);
+      return;
+    }
+    const totalPrice = calculateTotal();
+    const messageToAdmin = `Bonjour, je sollicite une réservation pour le tracteur ${selectedTractor.name} (Modèle : ${selectedTractor.model}). Période : ${bookingData.days} jours à partir du ${bookingData.startDate}. Montant : ${totalPrice} €. Veuillez communiquer l'IBAN pour paiement. Nom : ${bookingData.name}, Email : ${bookingData.email}, Téléphone : ${bookingData.phone}.`;
+
+    // Cas 1 : EmailJS correctement configuré (clés réelles renseignées) → envoi automatique.
+    if (isEmailJsConfigured()) {
+      setIsSubmittingBooking(true);
+      window.emailjs.init(EMAILJS_PUBLIC_KEY);
+      window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_name: "Administrateur",
+        from_name: bookingData.name,
+        from_email: bookingData.email,
+        message: messageToAdmin,
+        phone: bookingData.phone,
+        tractor_name: selectedTractor.name
+      }).then(() => {
+        recordReservation("En attente d'envoi de l'IBAN");
+        setIsSubmittingBooking(false);
+        setShowModal(false);
+        setMessage("✅ Demande transmise ! Vous recevrez l'IBAN par email sous peu.");
+        setTimeout(() => setMessage(''), 6000);
+      }, () => {
+        // L'envoi automatique a échoué : on ne perd jamais la demande du client.
+        recordReservation("Reçue (envoi email à confirmer manuellement)");
+        setIsSubmittingBooking(false);
+        setShowModal(false);
+        setMessage("⚠️ Demande enregistrée, mais l'email n'a pas pu partir automatiquement. Nous vous recontactons.");
+        setTimeout(() => setMessage(''), 7000);
+      });
+      return;
+    }
+
+    // Cas 2 : pas de service d'envoi configuré → on n'échoue jamais en silence.
+    // La demande est toujours enregistrée localement, et un canal de secours (WhatsApp / email) est ouvert.
+    recordReservation("En attente de contact (mode démo — EmailJS non configuré)");
+    setShowModal(false);
+    setMessage("✅ Demande enregistrée ! Utilisez le bouton de contact pour finaliser avec l'agence.");
+    setTimeout(() => setMessage(''), 7000);
+    const mailtoLink = `mailto:${settings.adminEmail}?subject=${encodeURIComponent('Demande de réservation — ' + selectedTractor.name)}&body=${encodeURIComponent(messageToAdmin)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
+  const confirmPaymentAdmin = (id) => {
+    const reservation = reservations.find(r => r.id === id);
+    if (!reservation) return;
+
+    // On confirme d'abord localement, quoi qu'il arrive.
+    setReservations(prev => prev.map(res => res.id === id ? { ...res, status: "Paiement confirmé - Réservation réussie" } : res));
+
+    const isConfigured =
+      typeof window.emailjs !== 'undefined' &&
+      EMAILJS_PUBLIC_KEY && !EMAILJS_PUBLIC_KEY.startsWith('VOTRE_') &&
+      EMAILJS_SERVICE_ID && !EMAILJS_SERVICE_ID.startsWith('VOTRE_') &&
+      EMAILJS_RECEIPT_TEMPLATE_ID && !EMAILJS_RECEIPT_TEMPLATE_ID.startsWith('VOTRE_');
+
+    if (!isConfigured) {
+      setMessage("🎉 Paiement confirmé. (Reçu email non envoyé — modèle non configuré)");
+      setTimeout(() => setMessage(''), 5000);
+      return;
+    }
+
+    window.emailjs.init(EMAILJS_PUBLIC_KEY);
+    window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_RECEIPT_TEMPLATE_ID, {
+      email: reservation.clientEmail,
+      client_name: reservation.clientName,
+      tractor_name: reservation.tractorName,
+      tractor_model: reservation.model,
+      start_date: reservation.startDate,
+      duration: reservation.duration,
+      reservation_id: reservation.id,
+      total_price: reservation.totalPrice,
+      site_name: settings.siteName,
+      admin_email: settings.adminEmail
+    }).then(() => {
+      setReservations(prev => prev.map(res => res.id === id ? { ...res, status: "Paiement confirmé - Réservation réussie", receiptSent: true } : res));
+      setMessage("🎉 Paiement confirmé — reçu envoyé au client par email.");
+      setTimeout(() => setMessage(''), 5000);
+    }, () => {
+      setMessage("⚠️ Paiement confirmé, mais l'envoi du reçu par email a échoué. Pensez à contacter le client manuellement.");
+      setTimeout(() => setMessage(''), 6000);
+    });
+  };
+
+  const addOrUpdateTractor = (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    const newTractor = { id: editingTractorId || Date.now(), name: data.get('name'), model: data.get('model'), pricePerDay: parseFloat(data.get('price')), category: data.get('category'), images: data.get('images').split(',').map(url => url.trim()) };
+    if (editingTractorId) { setTractors(prev => prev.map(t => t.id === editingTractorId ? newTractor : t)); setEditingTractorId(null); } 
+    else { setTractors(prev => [...prev, newTractor]); }
+    form.reset();
+    setMessage(`✅ Tracteur ${editingTractorId ? 'modifié' : 'ajouté'} !`);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const deleteTractor = (id) => {
+    if(confirm("Voulez-vous vraiment supprimer ce tracteur ?")) { setTractors(prev => prev.filter(t => t.id !== id)); setMessage("🗑️ Tracteur supprimé."); setTimeout(() => setMessage(''), 3000); }
+  };
+
+  const updateSiteSettings = (e) => {
+    e.preventDefault();
+    const data = new FormData(e.target);
+    setSettings({ ...settings, siteName: data.get('siteName'), adminEmail: data.get('adminEmail'), primaryColor: data.get('primaryColor'), secondaryColor: data.get('secondaryColor'), bgColor: data.get('bgColor'), iaAgentEnabled: data.get('iaAgentEnabled') === 'on', iaAgentSystemMessage: data.get('iaAgentSystemMessage'), openAiApiKey: data.get('openAiApiKey') });
+    setMessage("✅ Configuration mise à jour !");
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const resetCatalog = () => {
+    if (confirm("Réinitialiser le catalogue avec les 14 tracteurs par défaut ? Vos tracteurs personnalisés seront remplacés.")) {
+      setTractors(defaultTractors);
+      setMessage("✅ Catalogue réinitialisé (14 tracteurs).");
+      setTimeout(() => setMessage(''), 4000);
+    }
+  };
+
+  const theme = { primary: settings.primaryColor, secondary: settings.secondaryColor, bg: settings.bgColor };
+
+  const filteredTractors = tractors.filter(t => {
+    const matchesCategory = categoryFilter === 'Toutes' || t.category === categoryFilter;
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = !q || t.name.toLowerCase().includes(q) || t.model.toLowerCase().includes(q);
+    return matchesCategory && matchesSearch;
+  });
+
+  return (
+    <div style={{ backgroundColor: theme.bg, minHeight: '100vh', fontFamily: settings.fontFamily, color: '#fff', paddingBottom: '30px' }}>
+      
+      {message && (
+        <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: theme.primary, color: '#fff', padding: '15px 25px', borderRadius: '10px', zIndex: 9999, boxShadow: '0 8px 25px rgba(0,0,0,0.6)', fontWeight: '500', maxWidth: '90%', textAlign: 'center' }}>
+          {message}
+        </div>
+      )}
+
+      <nav style={{ backgroundColor: '#1a1a1a', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', borderBottom: `2px solid ${theme.primary}`, position: 'relative' }}>
+        {/* Gauche : hamburger + logo, groupés comme sur la référence */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div onClick={() => setIsMenuOpen(!isMenuOpen)} role="button" tabIndex={0} aria-label="Ouvrir le menu" aria-expanded={isMenuOpen}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsMenuOpen(!isMenuOpen); }}
+            style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', cursor: 'pointer', padding: '6px' }}>
+            <span style={{ width: '22px', height: '2px', backgroundColor: '#fff', display: 'block' }} />
+            <span style={{ width: '22px', height: '2px', backgroundColor: '#fff', display: 'block' }} />
+            <span style={{ width: '22px', height: '2px', backgroundColor: '#fff', display: 'block' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setIsAdminMode(false)}>
+            <span style={{ fontWeight: 'bold', fontSize: '18px', letterSpacing: '0.3px', color: '#fff' }}>🚜 {settings.siteName}</span>
+          </div>
+        </div>
+
+        {/* Droite : bouton Admin, façon "Log in" */}
+        <button onClick={() => setIsAdminMode(!isAdminMode)}
+          style={{ backgroundColor: theme.primary, color: '#fff', border: 'none', padding: '9px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+          {isAdminMode ? 'Voir le site' : 'Admin'}
+        </button>
+
+        {/* Menu déroulant du hamburger : Catalogue / Blog */}
+        {isMenuOpen && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#1a1a1a', display: 'flex', flexDirection: 'column', padding: '8px 20px 14px', borderBottom: `2px solid ${theme.primary}`, zIndex: 50 }}>
+            <span onClick={() => { setIsMenuOpen(false); setIsAdminMode(false); setTimeout(() => { const el = document.getElementById('catalogue'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 0); }}
+              style={{ color: '#fff', fontSize: '15px', fontWeight: '500', padding: '12px 0', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Catalogue</span>
+            <a href="https://tractorrent.github.io/tractorrent-blog-cron/" target="_blank" rel="noopener noreferrer" onClick={() => setIsMenuOpen(false)}
+              style={{ color: '#fff', fontSize: '15px', fontWeight: '500', padding: '12px 0', textDecoration: 'none' }}>Blog</a>
+          </div>
+        )}
+      </nav>
+
+      {!isAdminMode ? (
+        <>
+          {/* HERO */}
+          <div style={{ padding: '60px 20px 40px', textAlign: 'center' }}>
+            <h1 style={{ fontSize: '30px', fontWeight: 800, margin: '0 0 12px', lineHeight: 1.2 }}>
+              Louez le tracteur idéal, en quelques clics
+            </h1>
+            <p style={{ opacity: 0.7, maxWidth: '520px', margin: '0 auto', fontSize: '14px' }}>
+              Un catalogue de tracteurs premium et standard, réservables directement en ligne.
+            </p>
+          </div>
+
+          {/* CATALOGUE */}
+          <div id="catalogue" style={{ padding: '0 20px 40px' }}>
+            <h2 style={{ fontSize: '20px', marginBottom: '18px' }}>Notre catalogue ({filteredTractors.length})</h2>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher un modèle (ex : Fendt, Deere...)"
+                aria-label="Rechercher un tracteur"
+                style={{ flex: '1 1 220px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff', fontSize: '14px' }}
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {['Toutes', 'Standard', 'Premium'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    aria-pressed={categoryFilter === cat}
+                    style={{
+                      backgroundColor: categoryFilter === cat ? theme.primary : '#1c1c1c',
+                      border: '1px solid ' + (categoryFilter === cat ? theme.primary : '#333'),
+                      color: '#fff', padding: '9px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                    }}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredTractors.length === 0 && (
+              <p style={{ opacity: 0.6, fontSize: '13px', marginBottom: '18px' }}>Aucun tracteur ne correspond à votre recherche.</p>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '18px' }}>
+              {filteredTractors.map(t => (
+                <div key={t.id} style={{ backgroundColor: '#1c1c1c', borderRadius: '14px', overflow: 'hidden', border: '1px solid #2a2a2a' }}>
+                  <ImageSlider images={t.images} alt={`${t.name} — ${t.model}`} />
+                  <div style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '15px' }}>{t.name}</div>
+                        <div style={{ opacity: 0.6, fontSize: '12px' }}>{t.model}</div>
+                      </div>
+                      <span style={{ backgroundColor: t.category === 'Premium' ? theme.secondary : '#333', fontSize: '10px', padding: '4px 8px', borderRadius: '6px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {t.category}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '19px', fontWeight: 800 }}>
+                        {t.pricePerDay} €<span style={{ fontSize: '11px', fontWeight: 400, opacity: 0.6 }}>/jour</span>
+                      </span>
+                      <button onClick={() => { setSelectedTractor(t); setBookingData({ name: '', email: '', phone: '', days: 1, startDate: '' }); setShowModal(true); }}
+                        style={{ backgroundColor: theme.primary, border: 'none', color: '#fff', padding: '9px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                        Réserver
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* BLOG */}
+          <div style={{ padding: '0 20px 60px' }}>
+            <h2 style={{ fontSize: '20px', marginBottom: '18px' }}>Derniers articles</h2>
+            {isBlogLoading ? (
+              <p style={{ opacity: 0.6, fontSize: '13px' }}>Chargement des articles...</p>
+            ) : blogPosts.length === 0 ? (
+              <p style={{ opacity: 0.6, fontSize: '13px' }}>Aucun article disponible pour le moment.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
+                {blogPosts.map((p, i) => (
+                  <a key={i} href={p.url || p.link || 'https://tractorrent.github.io/tractorrent-blog-cron/'} target="_blank" rel="noopener noreferrer"
+                    style={{ backgroundColor: '#1c1c1c', borderRadius: '10px', padding: '16px', textDecoration: 'none', color: '#fff', border: '1px solid #2a2a2a', display: 'block' }}>
+                    <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '14px' }}>{p.title || 'Article de blog'}</div>
+                    <div style={{ fontSize: '12px', opacity: 0.6 }}>{p.excerpt || p.description || ''}</div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        /* ============================= PANNEAU ADMIN ============================= */
+        <div style={{ padding: '40px 20px', maxWidth: '760px', margin: '0 auto' }}>
+          {adminPassword !== 'admin123' ? (
+            <div style={{ maxWidth: '300px', margin: '60px auto', textAlign: 'center' }}>
+              <h2 style={{ marginBottom: '16px' }}>Connexion Admin</h2>
+              <input type="password" placeholder="Mot de passe" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
+              <p style={{ fontSize: '11px', opacity: 0.5, marginTop: '10px' }}>Démo — mot de passe : admin123</p>
+            </div>
+          ) : (
+            <>
+              <h2 style={{ fontSize: '18px', marginBottom: '14px' }}>Réservations ({reservations.length})</h2>
+              <div style={{ marginBottom: '36px' }}>
+                {reservations.length === 0 && <p style={{ opacity: 0.6, fontSize: '13px' }}>Aucune réservation pour le moment.</p>}
+                {reservations.map(r => (
+                  <div key={r.id} style={{ backgroundColor: '#1c1c1c', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '14px', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px' }}>{r.tractorName} — {r.model}</div>
+                    <div style={{ fontSize: '12px', opacity: 0.7, margin: '4px 0' }}>{r.clientName} · {r.clientEmail} · {r.duration} jour(s) · {r.totalPrice} €</div>
+                    <div style={{ fontSize: '12px', color: theme.secondary, fontWeight: 600 }}>{r.status}</div>
+                    {r.receiptSent && (
+                      <div style={{ fontSize: '11px', color: theme.primary, marginTop: '4px' }}>✅ Reçu envoyé au client</div>
+                    )}
+                    {r.status.includes('attente') && (
+                      <button onClick={() => confirmPaymentAdmin(r.id)} style={{ marginTop: '8px', backgroundColor: theme.primary, border: 'none', color: '#fff', padding: '7px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                        Confirmer le paiement
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h2 style={{ fontSize: '18px', margin: 0 }}>Catalogue ({tractors.length} tracteur{tractors.length > 1 ? 's' : ''})</h2>
+                <button type="button" onClick={resetCatalog} style={{ background: 'none', border: `1px solid ${theme.secondary}`, color: theme.secondary, padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                  ↺ Réinitialiser (14 par défaut)
+                </button>
+              </div>
+
+              <h2 style={{ fontSize: '18px', marginBottom: '14px' }}>{editingTractorId ? 'Modifier le tracteur' : 'Ajouter un tracteur'}</h2>
+              <form onSubmit={addOrUpdateTractor} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                <input name="name" placeholder="Nom du modèle" required
+                  defaultValue={editingTractorId ? (tractors.find(t => t.id === editingTractorId)?.name || '') : ''}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <input name="model" placeholder="Modèle / variante" required
+                  defaultValue={editingTractorId ? (tractors.find(t => t.id === editingTractorId)?.model || '') : ''}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <input name="price" type="number" placeholder="Prix par jour (€)" required
+                  defaultValue={editingTractorId ? (tractors.find(t => t.id === editingTractorId)?.pricePerDay || '') : ''}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <select name="category" defaultValue={editingTractorId ? (tractors.find(t => t.id === editingTractorId)?.category || 'Standard') : 'Standard'}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }}>
+                  <option value="Standard">Standard</option>
+                  <option value="Premium">Premium</option>
+                </select>
+                <input name="images" placeholder="URLs des images, séparées par des virgules" required
+                  defaultValue={editingTractorId ? (tractors.find(t => t.id === editingTractorId)?.images || []).join(', ') : ''}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" style={{ flex: 1, backgroundColor: theme.primary, border: 'none', color: '#fff', padding: '10px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                    {editingTractorId ? 'Enregistrer' : 'Ajouter'}
+                  </button>
+                  {editingTractorId && (
+                    <button type="button" onClick={() => setEditingTractorId(null)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #444', backgroundColor: 'transparent', color: '#fff', cursor: 'pointer' }}>
+                      Annuler
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              <div style={{ marginBottom: '36px' }}>
+                {tractors.map(t => (
+                  <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #2a2a2a' }}>
+                    <span style={{ fontSize: '13px' }}>{t.name} — {t.pricePerDay} €/jour</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => setEditingTractorId(t.id)} style={{ background: 'none', border: 'none', color: theme.secondary, cursor: 'pointer', fontSize: '12px' }}>Éditer</button>
+                      <button onClick={() => deleteTractor(t.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>Supprimer</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <h2 style={{ fontSize: '18px', marginBottom: '14px' }}>Paramètres du site</h2>
+              <form onSubmit={updateSiteSettings} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <input name="siteName" placeholder="Nom du site" defaultValue={settings.siteName}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <input name="adminEmail" placeholder="Email admin" defaultValue={settings.adminEmail}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <label style={{ flex: 1, fontSize: '12px', opacity: 0.7 }}>Couleur principale
+                    <input name="primaryColor" type="color" defaultValue={settings.primaryColor} style={{ width: '100%', height: '36px', marginTop: '4px' }} />
+                  </label>
+                  <label style={{ flex: 1, fontSize: '12px', opacity: 0.7 }}>Couleur secondaire
+                    <input name="secondaryColor" type="color" defaultValue={settings.secondaryColor} style={{ width: '100%', height: '36px', marginTop: '4px' }} />
+                  </label>
+                  <label style={{ flex: 1, fontSize: '12px', opacity: 0.7 }}>Fond
+                    <input name="bgColor" type="color" defaultValue={settings.bgColor} style={{ width: '100%', height: '36px', marginTop: '4px' }} />
+                  </label>
+                </div>
+                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                  <input type="checkbox" name="iaAgentEnabled" defaultChecked={settings.iaAgentEnabled} /> Activer l'assistant IA (widget de chat)
+                </label>
+                <textarea name="iaAgentSystemMessage" placeholder="Message d'accueil de l'assistant" defaultValue={settings.iaAgentSystemMessage} rows={2}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff', resize: 'vertical' }} />
+                <input name="openAiApiKey" type="password" placeholder="Clé API OpenAI (optionnel — sinon mode démo)" defaultValue={settings.openAiApiKey}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <p style={{ fontSize: '11px', opacity: 0.5 }}>
+                  ⚠️ Cette clé est stockée uniquement dans le navigateur (localStorage) et sera visible dans le code source de la page. Ne pas utiliser de clé de production.
+                </p>
+                <button type="submit" style={{ backgroundColor: theme.primary, border: 'none', color: '#fff', padding: '10px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                  Enregistrer
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* MODAL DE RÉSERVATION */}
+      {showModal && selectedTractor && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div style={{ backgroundColor: '#1c1c1c', borderRadius: '14px', maxWidth: '420px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' }}>
+            <div style={{ padding: '18px', borderBottom: '1px solid #2a2a2a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '16px' }}>{selectedTractor.name}</h3>
+              <span onClick={() => setShowModal(false)} role="button" tabIndex={0} aria-label="Fermer la fenêtre de réservation" style={{ cursor: 'pointer', opacity: 0.6 }}>✕</span>
+            </div>
+            <form onSubmit={submitBooking} style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input name="name" placeholder="Nom complet" required value={bookingData.name} onChange={handleInputChange}
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+              <input name="email" type="email" placeholder="Email" required value={bookingData.email} onChange={handleInputChange}
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+              <input name="phone" placeholder="Téléphone" value={bookingData.phone} onChange={handleInputChange}
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input name="startDate" type="date" required min={todayISO} value={bookingData.startDate} onChange={handleInputChange}
+                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+                <input name="days" type="number" min="1" max="90" placeholder="Jours" required value={bookingData.days} onChange={handleInputChange}
+                  style={{ width: '90px', padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#1a1a1a', color: '#fff' }} />
+              </div>
+              <div style={{ backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                <span>Total</span><span>{calculateTotal()} €</span>
+              </div>
+              <button type="submit" disabled={isSubmittingBooking} style={{ backgroundColor: theme.primary, border: 'none', color: '#fff', padding: '12px', borderRadius: '8px', fontWeight: 700, cursor: isSubmittingBooking ? 'not-allowed' : 'pointer', opacity: isSubmittingBooking ? 0.7 : 1 }}>
+                {isSubmittingBooking ? 'Envoi en cours…' : 'Envoyer la demande'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER */}
+      <footer style={{ padding: '30px 20px', textAlign: 'center', opacity: 0.5, fontSize: '12px', borderTop: '1px solid #2a2a2a', marginTop: '20px' }}>
+        © {new Date().getFullYear()} {settings.siteName} — {settings.adminEmail}
+      </footer>
+
+      {/* WIDGET IA */}
+      {settings.iaAgentEnabled && (
+        <ChatWidget
+          settings={settings}
+          isChatOpen={isChatOpen}
+          setIsChatOpen={setIsChatOpen}
+          chatMessages={chatMessages}
+          setChatMessages={setChatMessages}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          isAiLoading={isAiLoading}
+          setIsAiLoading={setIsAiLoading}
+        />
+      )}
+    </div>
+  );
+}
+
+const rootEl = document.getElementById('root');
+const root = ReactDOM.createRoot(rootEl);
+root.render(<App />);
+</script>
+<script>
+  (function () {
+    var box = document.getElementById('error-box');
+    try {
+      var source = document.getElementById('app-source').textContent;
+      var compiled = Babel.transform(source, { presets: [['react', { runtime: 'classic' }]] }).code;
+      var fn = new Function(compiled);
+      fn();
+    } catch (err) {
+      console.error(err);
+      if (box) {
+        var isDebug = /(?:^|[?&])debug=1(?:&|$)/.test(window.location.search);
+        box.style.display = 'block';
+        box.textContent = isDebug
+          ? 'ERREUR DE COMPILATION/EXECUTION :\n\n' + (err && err.message ? err.message : String(err)) + '\n\n' + (err && err.stack ? err.stack : '')
+          : "Une erreur est survenue. Merci de réessayer ou de nous contacter si le problème persiste.";
+      }
+    }
+  })();
+</script>
+</body>
+</html>
